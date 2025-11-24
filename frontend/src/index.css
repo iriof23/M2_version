@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,8 +12,8 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -22,30 +24,39 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 160 84% 39%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    /* Dark gray backgrounds with contrast - not pure black */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Emerald green primary - cybersecurity aesthetic */
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Contrast sections - lighter gray for cards */
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 95%;
+
+    /* Semantic colors for severity levels */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 95%;
+
+    /* Borders - subtle but visible */
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 160 84% 39%;
   }
 }
 
@@ -53,7 +64,126 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Enhanced typography */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  /* Override hardcoded Tailwind dark mode colors for contrast sections */
+  .dark .dark\:bg-gray-800 {
+    background-color: rgb(26, 26, 26) !important;
+  }
+
+  .dark .dark\:bg-gray-900 {
+    background-color: rgb(15, 15, 15) !important;
+  }
+
+  .dark .dark\:bg-gray-700 {
+    background-color: rgb(31, 31, 31) !important;
+  }
+
+  .dark .dark\:border-gray-700 {
+    border-color: rgb(42, 42, 42) !important;
+  }
+
+  .dark .dark\:border-gray-600 {
+    border-color: rgb(42, 42, 42) !important;
+  }
+
+  .dark .dark\:text-gray-400 {
+    color: rgb(160, 160, 160) !important;
+  }
+
+  .dark .dark\:text-gray-300 {
+    color: rgb(200, 200, 200) !important;
+  }
+
+  /* Override all blue/cyan colors with emerald green */
+  .bg-blue-50 {
+    background-color: rgb(236, 253, 245) !important;
+  }
+
+  .bg-blue-100 {
+    background-color: rgb(209, 250, 229) !important;
+  }
+
+  .bg-blue-500 {
+    background-color: rgb(16, 185, 129) !important;
+  }
+
+  .bg-blue-600 {
+    background-color: rgb(16, 185, 129) !important;
+  }
+
+  .hover\:bg-blue-600:hover {
+    background-color: rgb(5, 150, 105) !important;
+  }
+
+  .hover\:bg-blue-700:hover {
+    background-color: rgb(4, 120, 87) !important;
+  }
+
+  .hover\:bg-blue-50:hover {
+    background-color: rgb(209, 250, 229) !important;
+  }
+
+  .hover\:bg-blue-100:hover {
+    background-color: rgb(167, 243, 208) !important;
+  }
+
+  .text-blue-600 {
+    color: rgb(16, 185, 129) !important;
+  }
+
+  .hover\:text-blue-600:hover {
+    color: rgb(16, 185, 129) !important;
+  }
+
+  .border-blue-600 {
+    border-color: rgb(16, 185, 129) !important;
+  }
+
+  .ring-blue-500 {
+    --tw-ring-color: rgb(16, 185, 129) !important;
+  }
+
+  .focus\:ring-blue-500:focus {
+    --tw-ring-color: rgb(16, 185, 129) !important;
+  }
+
+  .focus\:border-blue-500:focus {
+    border-color: rgb(16, 185, 129) !important;
+  }
+
+  /* Dark mode green overrides */
+  .dark .dark\:bg-blue-900 {
+    background-color: rgb(6, 78, 59) !important;
+  }
+
+  .dark .dark\:bg-blue-950 {
+    background-color: rgb(4, 47, 46) !important;
+  }
+
+  .dark .dark\:text-blue-400 {
+    color: rgb(52, 211, 153) !important;
+  }
+
+  .dark .dark\:border-blue-800 {
+    border-color: rgb(6, 95, 70) !important;
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -17,7 +17,6 @@ import {
     User,
     Mail,
     Phone,
-    MapPin,
     Tag,
     Shield,
     Briefcase,
@@ -32,9 +31,10 @@ interface AddClientDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onClientAdded?: (client: any) => void
+    editingClient?: any
 }
 
-export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClientDialogProps) {
+export function AddClientDialog({ open, onOpenChange, onClientAdded, editingClient }: AddClientDialogProps) {
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
         // Basic Info
@@ -58,6 +58,40 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
     })
 
     const [tagInput, setTagInput] = useState('')
+
+    // Populate form when editing
+    useEffect(() => {
+        if (editingClient && open) {
+            setFormData({
+                name: editingClient.name || '',
+                industry: editingClient.industry || '',
+                companySize: editingClient.companySize || 'SMB',
+                logoUrl: editingClient.logoUrl || '',
+                primaryContact: editingClient.primaryContact || '',
+                email: editingClient.email || '',
+                phone: editingClient.phone || '',
+                status: editingClient.status || 'Prospect',
+                riskLevel: editingClient.riskLevel || 'Medium',
+                tags: editingClient.tags || [],
+                notes: editingClient.notes || ''
+            })
+        } else if (!editingClient && open) {
+            // Reset form when adding new client
+            setFormData({
+                name: '',
+                industry: '',
+                companySize: 'SMB',
+                logoUrl: '',
+                primaryContact: '',
+                email: '',
+                phone: '',
+                status: 'Prospect',
+                riskLevel: 'Medium',
+                tags: [],
+                notes: ''
+            })
+        }
+    }, [editingClient, open])
 
     const totalSteps = 3
 
@@ -85,8 +119,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
     }
 
     const handleSubmit = () => {
-        // Create new client object
-        const newClient = {
+        // Create or update client object
+        const clientData = editingClient ? {
+            ...editingClient,
+            ...formData,
+            updatedAt: new Date()
+        } : {
             id: Date.now().toString(),
             ...formData,
             lastActivity: 'Just now',
@@ -104,7 +142,7 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
             updatedAt: new Date()
         }
 
-        onClientAdded?.(newClient)
+        onClientAdded?.(clientData)
         onOpenChange(false)
 
         // Reset form
@@ -129,8 +167,8 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                        <Building2 className="h-6 w-6 text-blue-600" />
-                        Add New Client
+                        <Building2 className="h-6 w-6 text-primary" />
+                        {editingClient ? 'Edit Client' : 'Add New Client'}
                     </DialogTitle>
                     <DialogDescription>
                         Create a new client organization to start tracking pentesting projects
@@ -428,10 +466,10 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={!formData.name || !formData.primaryContact || !formData.email}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-primary hover:bg-primary/90"
                             >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Create Client
+                                {editingClient ? 'Update Client' : 'Create Client'}
                             </Button>
                         )}
                     </div>

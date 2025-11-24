@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from './lib/store'
+import { useEffect } from 'react'
+import { useAuthStore, useThemeStore } from './lib/store'
 import Login from './pages/Login'
 import LicenseEntry from './pages/LicenseEntry'
 import Dashboard from './pages/Dashboard'
@@ -12,6 +13,12 @@ import Layout from './components/Layout'
 
 function App() {
     const { isAuthenticated, deploymentMode } = useAuthStore()
+    const initializeTheme = useThemeStore((state) => state.initializeTheme)
+
+    // Initialize theme on mount
+    useEffect(() => {
+        initializeTheme()
+    }, [initializeTheme])
 
     return (
         <BrowserRouter>

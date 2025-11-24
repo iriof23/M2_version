@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   LayoutGrid,
   List,
-  Table as TableIcon,
   Table2,
   Plus,
   Search,
@@ -27,7 +26,8 @@ import {
   Pencil,
   StickyNote,
   Archive,
-  X
+  X,
+  Copy
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -40,9 +40,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AddClientDialog } from '@/components/AddClientDialog'
+import ClientDetailModal from '@/components/ClientDetailModal'
 import { cn } from '@/lib/utils'
 
 // Client interface
@@ -212,10 +223,13 @@ type ViewMode = 'card' | 'table' | 'list'
 export default function Clients() {
   const [viewMode, setViewMode] = useState<ViewMode>('card')
   const [searchQuery, setSearchQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
   const [clients, setClients] = useState(mockClients)
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [viewingClient, setViewingClient] = useState<Client | null>(null)
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null)
 
   // Load saved view mode from localStorage
   useEffect(() => {
@@ -250,12 +264,65 @@ export default function Clients() {
   }
 
   const openAddClientDialog = () => {
+    setEditingClient(null)
     setAddClientDialogOpen(true)
   }
 
   const handleClientAdded = (newClient: any) => {
-    setClients([...clients, newClient])
-    console.log('New client added:', newClient)
+    if (editingClient) {
+      // Update existing client
+      setClients(clients.map(c => c.id === editingClient.id ? { ...c, ...newClient } : c))
+      console.log('Client updated:', newClient)
+    } else {
+      // Add new client
+      setClients([...clients, newClient])
+      console.log('New client added:', newClient)
+    }
+    setEditingClient(null)
+  }
+
+  // Client action handlers
+  const handleViewClient = (client: Client) => {
+    setViewingClient(client)
+  }
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client)
+    setAddClientDialogOpen(true)
+  }
+
+  const handleDeleteClient = (client: Client) => {
+    setDeletingClient(client)
+  }
+
+  const confirmDeleteClient = () => {
+    if (deletingClient) {
+      setClients(clients.filter(c => c.id !== deletingClient.id))
+      setDeletingClient(null)
+    }
+  }
+
+  const handleDuplicateClient = (client: Client) => {
+    const duplicatedClient = {
+      ...client,
+      id: `${client.id}-copy-${Date.now()}`,
+      name: `${client.name} (Copy)`,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    setClients([...clients, duplicatedClient])
+  }
+
+  const handleArchiveClient = (client: Client) => {
+    setClients(clients.map(c =>
+      c.id === client.id ? { ...c, status: 'Archived' as const } : c
+    ))
+  }
+
+  const handleCopyClientLink = (client: Client) => {
+    navigator.clipboard.writeText(`${window.location.origin}/clients/${client.id}`)
+    // You could add a toast notification here
+    console.log('Client link copied to clipboard')
   }
 
   // Calculate stats
@@ -286,10 +353,10 @@ export default function Clients() {
             Manage your client organizations and contacts
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-          <Plus className="w-4 h-4" />
+        <Button onClick={openAddClientDialog} className="bg-primary hover:bg-primary/90">
+          <Plus className="w-4 h-4 mr-2" />
           Add Client
-        </button>
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -344,10 +411,7 @@ export default function Clients() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={openAddClientDialog} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Client
-            </Button>
+
 
             {/* Enhanced Filter Button with Count Badge */}
             <Button
@@ -488,9 +552,39 @@ export default function Clients() {
       {/* Content Views */}
       {!isLoading && filteredClients.length > 0 && (
         <>
-          {viewMode === 'card' && <CardView clients={filteredClients} />}
-          {viewMode === 'table' && <TableView clients={filteredClients} />}
-          {viewMode === 'list' && <ListView clients={filteredClients} />}
+          {viewMode === 'card' && (
+            <CardView
+              clients={filteredClients}
+              onView={handleViewClient}
+              onEdit={handleEditClient}
+              onDelete={handleDeleteClient}
+              onDuplicate={handleDuplicateClient}
+              onArchive={handleArchiveClient}
+              onCopyLink={handleCopyClientLink}
+            />
+          )}
+          {viewMode === 'table' && (
+            <TableView
+              clients={filteredClients}
+              onView={handleViewClient}
+              onEdit={handleEditClient}
+              onDelete={handleDeleteClient}
+              onDuplicate={handleDuplicateClient}
+              onArchive={handleArchiveClient}
+              onCopyLink={handleCopyClientLink}
+            />
+          )}
+          {viewMode === 'list' && (
+            <ListView
+              clients={filteredClients}
+              onView={handleViewClient}
+              onEdit={handleEditClient}
+              onDelete={handleDeleteClient}
+              onDuplicate={handleDuplicateClient}
+              onArchive={handleArchiveClient}
+              onCopyLink={handleCopyClientLink}
+            />
+          )}
         </>
       )}
 
@@ -531,7 +625,38 @@ export default function Clients() {
         open={addClientDialogOpen}
         onOpenChange={setAddClientDialogOpen}
         onClientAdded={handleClientAdded}
+        editingClient={editingClient}
       />
+
+      {/* Client Detail Modal */}
+      <ClientDetailModal
+        client={viewingClient}
+        open={!!viewingClient}
+        onClose={() => setViewingClient(null)}
+        onEdit={handleEditClient}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingClient} onOpenChange={() => setDeletingClient(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Client</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deletingClient?.name}</strong>? This action cannot be undone.
+              All associated projects and reports will remain but will no longer be linked to this client.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteClient}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Client
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -624,7 +749,17 @@ function StatCard({
 }
 
 // Card View Component
-function CardView({ clients }: { clients: Client[] }) {
+interface CardViewProps {
+  clients: Client[]
+  onView: (client: Client) => void
+  onEdit: (client: Client) => void
+  onDelete: (client: Client) => void
+  onDuplicate: (client: Client) => void
+  onArchive: (client: Client) => void
+  onCopyLink: (client: Client) => void
+}
+
+function CardView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, onCopyLink }: CardViewProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {clients.map((client) => (
@@ -642,9 +777,41 @@ function CardView({ clients }: { clients: Client[] }) {
                   <p className="text-sm text-gray-600 dark:text-gray-400">{client.primaryContact}</p>
                 </div>
               </div>
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                <MoreVertical className="w-4 h-4" />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onView(client)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(client)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Client
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onDuplicate(client)}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicate
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onArchive(client)}>
+                    <Archive className="w-4 h-4 mr-2" />
+                    Archive
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCopyLink(client)}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Copy Link
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onDelete(client)} className="text-red-600 dark:text-red-400">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Client
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -689,11 +856,17 @@ function CardView({ clients }: { clients: Client[] }) {
 
           {/* Card Actions */}
           <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex gap-2">
-            <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button
+              onClick={() => onView(client)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
               <Eye className="w-4 h-4" />
               View
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button
+              onClick={() => onEdit(client)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
               <Edit className="w-4 h-4" />
               Edit
             </button>
@@ -705,7 +878,17 @@ function CardView({ clients }: { clients: Client[] }) {
 }
 
 // Table View Component
-function TableView({ clients }: { clients: Client[] }) {
+interface TableViewProps {
+  clients: Client[]
+  onView: (client: Client) => void
+  onEdit: (client: Client) => void
+  onDelete: (client: Client) => void
+  onDuplicate: (client: Client) => void
+  onArchive: (client: Client) => void
+  onCopyLink: (client: Client) => void
+}
+
+function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, onCopyLink }: TableViewProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
@@ -752,7 +935,7 @@ function TableView({ clients }: { clients: Client[] }) {
                   <div className="text-sm text-gray-500 dark:text-gray-400">{client.email}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-full">
+                  <span className="px-2 py-1 text-xs font-semibold bg-primary/10 text-primary rounded-full">
                     {client.projectsCount} active
                   </span>
                 </td>
@@ -774,15 +957,44 @@ function TableView({ clients }: { clients: Client[] }) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end gap-2">
-                    <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                    <button
+                      onClick={() => onView(client)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    >
                       <Eye className="w-4 h-4" />
                     </button>
-                    <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                    <button
+                      onClick={() => onEdit(client)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    >
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onDuplicate(client)}>
+                          <Copy className="w-4 h-4 mr-2" />
+                          Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onArchive(client)}>
+                          <Archive className="w-4 h-4 mr-2" />
+                          Archive
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onCopyLink(client)}>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Copy Link
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onDelete(client)} className="text-red-600 dark:text-red-400">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </td>
               </tr>
@@ -795,7 +1007,17 @@ function TableView({ clients }: { clients: Client[] }) {
 }
 
 // Enhanced List View Component with 4-line structure
-function ListView({ clients }: { clients: Client[] }) {
+interface ListViewProps {
+  clients: Client[]
+  onView: (client: Client) => void
+  onEdit: (client: Client) => void
+  onDelete: (client: Client) => void
+  onDuplicate: (client: Client) => void
+  onArchive: (client: Client) => void
+  onCopyLink: (client: Client) => void
+}
+
+function ListView({ clients }: ListViewProps) {
   return (
     <div className="space-y-3">
       {clients.map((client) => (

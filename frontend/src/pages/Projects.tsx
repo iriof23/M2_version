@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react'
 import {
     FolderKanban,
-    Users,
-    Clock,
     CheckCircle2,
     AlertCircle,
     Calendar,
     LayoutGrid,
-    List,
     Table2,
     Plus,
     Search,
@@ -18,20 +15,16 @@ import {
     Building2,
     Target,
     PlayCircle,
-    PauseCircle,
-    XCircle,
     MoreVertical,
     Edit,
     Trash2,
     Eye,
     FileText,
-    Shield,
-    ChevronRight,
     X
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
     DropdownMenu,
@@ -49,10 +42,7 @@ import {
     startOfMonth,
     endOfMonth,
     addMonths,
-    format,
-    isSameMonth,
-    isWithinInterval,
-    startOfDay
+    format
 } from 'date-fns'
 
 // Project interface
@@ -340,7 +330,7 @@ const getPriorityColor = (priority: Project['priority']) => {
 export default function Projects() {
     const [viewMode, setViewMode] = useState<ViewMode>('card')
     const [searchQuery, setSearchQuery] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading] = useState(false)
     const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
     const [projects, setProjects] = useState(mockProjects)
     const [addProjectDialogOpen, setAddProjectDialogOpen] = useState(false)
@@ -813,7 +803,7 @@ function ProjectCard({ project }: { project: Project }) {
                 {/* Team Members */}
                 <div className="flex items-center gap-2 mb-4">
                     <div className="flex -space-x-2">
-                        {project.teamMembers.slice(0, 3).map((member, idx) => (
+                        {project.teamMembers.slice(0, 3).map((member, _idx) => (
                             <Avatar key={member.id} className="h-8 w-8 border-2 border-white dark:border-gray-800">
                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
                                     {member.name.split(' ').map(n => n[0]).join('')}
@@ -904,7 +894,7 @@ function TableView({ projects }: { projects: Project[] }) {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-lg">{project.clientLogo}</span>
+                                        <span className="text-lg">{project.clientLogoUrl}</span>
                                         <span className="text-sm text-gray-700 dark:text-gray-300">{project.clientName}</span>
                                     </div>
                                 </td>
@@ -999,7 +989,7 @@ function TimelineView({ projects }: { projects: Project[] }) {
 
     const totalDays = differenceInDays(endDate, startDate) + 1
 
-    const months = []
+    const months: Date[] = []
     let current = startDate
     while (current <= endDate) {
         months.push(current)
@@ -1035,7 +1025,7 @@ function TimelineView({ projects }: { projects: Project[] }) {
                             return (
                                 <div key={project.id} className="flex hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                                     <div className="w-64 flex-shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 flex items-center gap-3 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 transition-colors">
-                                        <div className="text-xl">{project.clientLogo}</div>
+                                        <div className="text-xl">{project.clientLogoUrl}</div>
                                         <div className="min-w-0">
                                             <div className="font-medium text-sm text-gray-900 dark:text-white truncate">{project.name}</div>
                                             <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{project.clientName}</div>

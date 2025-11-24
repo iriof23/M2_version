@@ -1,5 +1,6 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../lib/store'
+import logo from '../assets/logo.png'
 
 export default function Layout() {
     const navigate = useNavigate()
@@ -16,7 +17,10 @@ export default function Layout() {
             <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-lg">
                 <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">PenTest Reports</h1>
+                        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                            <img src={logo} alt="Atomik Logo" className="w-8 h-8 object-contain" />
+                            <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Atomik</span>
+                        </Link>
                     </div>
 
                     <nav className="flex-1 p-4 space-y-2">
