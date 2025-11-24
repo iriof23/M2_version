@@ -60,138 +60,133 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
         { id: '3', name: 'Infrastructure Review', status: 'Planning', priority: 'Low', progress: 15 },
     ]
 
-    // Mock recent activity
-    const recentActivity = [
-        { id: '1', action: 'Critical finding identified', date: '2 hours ago', type: 'critical' },
-        { id: '2', action: 'Report generated', date: '1 day ago', type: 'success' },
-        { id: '3', action: 'New project started', date: '3 days ago', type: 'info' },
-    ]
+
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                             {client.logoUrl && (
-                                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-3xl">
+                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-2xl">
                                     {client.logoUrl}
                                 </div>
                             )}
                             <div>
-                                <DialogTitle className="text-2xl">{client.name}</DialogTitle>
-                                <p className="text-muted-foreground mt-1">{client.primaryContact}</p>
+                                <DialogTitle className="text-xl">{client.name}</DialogTitle>
+                                <p className="text-muted-foreground text-sm mt-0.5">{client.primaryContact}</p>
                             </div>
                         </div>
-                        <Badge className={getStatusColor(client.status)}>{client.status}</Badge>
+                        <Badge className={`${getStatusColor(client.status)} mr-8`}>{client.status}</Badge>
                     </div>
                 </DialogHeader>
 
-                <div className="space-y-6 mt-6">
+                <div className="space-y-4 mt-4">
                     {/* Contact Information */}
-                    <div className="bg-card border border-border rounded-lg p-6">
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <div className="bg-card border border-border rounded-lg p-3">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                             <Mail className="w-5 h-5 text-primary" />
                             Contact Information
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex items-center gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
                                 <Mail className="w-4 h-4 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Email</p>
-                                    <p className="font-medium">{client.email}</p>
+                                    <p className="text-xs text-muted-foreground">Email</p>
+                                    <p className="text-sm font-medium">{client.email}</p>
                                 </div>
                             </div>
                             {client.phone && (
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <Phone className="w-4 h-4 text-muted-foreground" />
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Phone</p>
-                                        <p className="font-medium">{client.phone}</p>
+                                        <p className="text-xs text-muted-foreground">Phone</p>
+                                        <p className="text-sm font-medium">{client.phone}</p>
                                     </div>
                                 </div>
                             )}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <Building2 className="w-4 h-4 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Industry</p>
-                                    <p className="font-medium">{client.industry}</p>
+                                    <p className="text-xs text-muted-foreground">Industry</p>
+                                    <p className="text-sm font-medium">{client.industry}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Company Size</p>
-                                    <p className="font-medium">{client.companySize}</p>
+                                    <p className="text-xs text-muted-foreground">Company Size</p>
+                                    <p className="text-sm font-medium">{client.companySize}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-card border border-border rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="bg-card border border-border rounded-lg p-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Total Projects</p>
-                                    <p className="text-2xl font-bold mt-1">{client.projectsCount || 0}</p>
+                                    <p className="text-xs text-muted-foreground">Total Projects</p>
+                                    <p className="text-xl font-bold mt-0.5">{client.projectsCount || 0}</p>
                                 </div>
-                                <div className="p-3 bg-primary/10 rounded-lg">
-                                    <FileText className="w-6 h-6 text-primary" />
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <FileText className="w-5 h-5 text-primary" />
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-card border border-border rounded-lg p-4">
+                        <div className="bg-card border border-border rounded-lg p-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Total Findings</p>
-                                    <p className="text-2xl font-bold mt-1">{client.totalFindings || 0}</p>
+                                    <p className="text-xs text-muted-foreground">Total Findings</p>
+                                    <p className="text-xl font-bold mt-0.5">{client.totalFindings || 0}</p>
                                 </div>
-                                <div className="p-3 bg-amber-500/10 rounded-lg">
-                                    <Activity className="w-6 h-6 text-amber-500" />
+                                <div className="p-2 bg-amber-500/10 rounded-lg">
+                                    <Activity className="w-5 h-5 text-amber-500" />
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-card border border-border rounded-lg p-4">
+                        <div className="bg-card border border-border rounded-lg p-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Critical Issues</p>
-                                    <p className="text-2xl font-bold mt-1 text-red-500">{client.findingsBySeverity?.critical || 0}</p>
+                                    <p className="text-xs text-muted-foreground">Critical Issues</p>
+                                    <p className="text-xl font-bold mt-0.5 text-red-500">{client.findingsBySeverity?.critical || 0}</p>
                                 </div>
-                                <div className="p-3 bg-red-500/10 rounded-lg">
-                                    <Activity className="w-6 h-6 text-red-500" />
+                                <div className="p-2 bg-red-500/10 rounded-lg">
+                                    <Activity className="w-5 h-5 text-red-500" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Associated Projects */}
-                    <div className="bg-card border border-border rounded-lg p-6">
-                        <h3 className="text-lg font-semibold mb-4">Associated Projects</h3>
-                        <div className="space-y-3">
+                    <div className="bg-card border border-border rounded-lg p-3">
+                        <h3 className="text-sm font-semibold mb-3">Associated Projects</h3>
+                        <div className="space-y-2">
                             {associatedProjects.map((project) => (
                                 <div
                                     key={project.id}
-                                    className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                                    className="flex items-center justify-between p-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
                                 >
                                     <div className="flex-1">
-                                        <p className="font-medium">{project.name}</p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <Badge variant="outline" className="text-xs">
+                                        <p className="text-sm font-medium">{project.name}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                                 {project.status}
                                             </Badge>
-                                            <Badge variant="outline" className="text-xs">
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                                 {project.priority}
                                             </Badge>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-32">
-                                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-24">
+                                            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
                                                 <span>Progress</span>
                                                 <span>{project.progress}%</span>
                                             </div>
-                                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-primary rounded-full transition-all"
                                                     style={{ width: `${project.progress}%` }}
@@ -204,40 +199,17 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                         </div>
                     </div>
 
-                    {/* Recent Activity */}
-                    <div className="bg-card border border-border rounded-lg p-6">
-                        <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-                        <div className="space-y-3">
-                            {recentActivity.map((activity) => (
-                                <div key={activity.id} className="flex items-start gap-3">
-                                    <div
-                                        className={`w-2 h-2 rounded-full mt-2 ${activity.type === 'critical'
-                                            ? 'bg-red-500'
-                                            : activity.type === 'success'
-                                                ? 'bg-emerald-500'
-                                                : 'bg-blue-500'
-                                            }`}
-                                    />
-                                    <div className="flex-1">
-                                        <p className="font-medium">{activity.action}</p>
-                                        <p className="text-sm text-muted-foreground">{activity.date}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-border">
-                        <Button onClick={() => onEdit(client)} className="flex-1">
+                    <div className="flex items-center gap-2 pt-3 border-t border-border">
+                        <Button onClick={() => onEdit(client)} className="flex-1" size="sm">
                             <Edit className="w-4 h-4 mr-2" />
                             Edit Client
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button variant="outline" className="flex-1" size="sm">
                             <Download className="w-4 h-4 mr-2" />
                             Generate Report
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button variant="outline" className="flex-1" size="sm">
                             <Archive className="w-4 h-4 mr-2" />
                             Archive
                         </Button>

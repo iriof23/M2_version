@@ -1,0 +1,170 @@
+import { useState, useEffect } from 'react'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
+interface AddFindingDialogProps {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onFindingAdded: (finding: any) => void
+}
+
+export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFindingDialogProps) {
+    const [formData, setFormData] = useState({
+        title: '',
+        severity: 'Medium',
+        category: 'Web',
+        description: '',
+        remediation: '',
+        owasp_reference: ''
+    })
+
+    // Reset form when dialog opens
+    useEffect(() => {
+        if (open) {
+            setFormData({
+                title: '',
+                severity: 'Medium',
+                category: 'Web',
+                description: '',
+                remediation: '',
+                owasp_reference: ''
+            })
+        }
+    }, [open])
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+
+        const newFinding = {
+            id: `custom-${Date.now()}`,
+            ...formData
+        }
+
+        onFindingAdded(newFinding)
+        onOpenChange(false)
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Add Custom Finding</DialogTitle>
+                    <DialogDescription>
+                        Create a new vulnerability finding to add to your database.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input
+                                id="title"
+                                value={formData.title}
+                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                placeholder="e.g. SQL Injection"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="owasp">OWASP Reference</Label>
+                            <Input
+                                id="owasp"
+                                value={formData.owasp_reference}
+                                onChange={(e) => setFormData({ ...formData, owasp_reference: e.target.value })}
+                                placeholder="e.g. A03:2021-Injection"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="severity">Severity</Label>
+                            <Select
+                                value={formData.severity}
+                                onValueChange={(value) => setFormData({ ...formData, severity: value })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select severity" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Critical">Critical</SelectItem>
+                                    <SelectItem value="High">High</SelectItem>
+                                    <SelectItem value="Medium">Medium</SelectItem>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                    <SelectItem value="Info">Info</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="category">Category</Label>
+                            <Select
+                                value={formData.category}
+                                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Web">Web</SelectItem>
+                                    <SelectItem value="Mobile">Mobile</SelectItem>
+                                    <SelectItem value="Network">Network</SelectItem>
+                                    <SelectItem value="Cloud">Cloud</SelectItem>
+                                    <SelectItem value="Database">Database</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea
+                            id="description"
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            placeholder="Detailed description of the vulnerability..."
+                            className="h-32"
+                            required
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="remediation">Remediation</Label>
+                        <Textarea
+                            id="remediation"
+                            value={formData.remediation}
+                            onChange={(e) => setFormData({ ...formData, remediation: e.target.value })}
+                            placeholder="Steps to fix or mitigate the issue..."
+                            className="h-32"
+                            required
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit">Add Finding</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}

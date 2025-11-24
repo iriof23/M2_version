@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
     FolderKanban,
     CheckCircle2,
@@ -10,8 +11,6 @@ import {
     Search,
     Filter,
     Download,
-    TrendingUp,
-    TrendingDown,
     Building2,
     Target,
     PlayCircle,
@@ -20,7 +19,10 @@ import {
     Trash2,
     Eye,
     FileText,
-    X
+    X,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,7 +38,20 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AddProjectDialog } from '@/components/AddProjectDialog'
+import ProjectDetailModal from '@/components/ProjectDetailModal'
 import { cn } from '@/lib/utils'
+import { StatCard, statCardColors } from '@/components/StatCard'
+import { FilterDialog, FilterConfig, ActiveFilters } from '@/components/FilterDialog'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
     differenceInDays,
     startOfMonth,
@@ -332,8 +347,35 @@ export default function Projects() {
     const [searchQuery, setSearchQuery] = useState('')
     const [isLoading] = useState(false)
     const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
-    const [projects, setProjects] = useState(mockProjects)
+    const navigate = useNavigate()
+    const [projects, setProjects] = useState<Project[]>(() => {
+        const saved = localStorage.getItem('projects')
+        if (saved) {
+            try {
+                return JSON.parse(saved).map((p: any) => ({
+                    ...p,
+                    startDate: new Date(p.startDate),
+                    endDate: new Date(p.endDate),
+                    lastActivityDate: new Date(p.lastActivityDate),
+                    createdAt: new Date(p.createdAt),
+                    updatedAt: new Date(p.updatedAt)
+                }))
+            } catch (e) {
+                console.error('Failed to parse projects', e)
+                return mockProjects
+            }
+        }
+        return mockProjects
+    })
     const [addProjectDialogOpen, setAddProjectDialogOpen] = useState(false)
+    const [editingProject, setEditingProject] = useState<Project | null>(null)
+    const [viewingProject, setViewingProject] = useState<Project | null>(null)
+    const [deletingProject, setDeletingProject] = useState<Project | null>(null)
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+    const [projectFindingsData, setProjectFindingsData] = useState<Record<string, { count: number, severity: { critical: number, high: number, medium: number, low: number } }>>({})
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
+    const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+    const [appliedFilters, setAppliedFilters] = useState<ActiveFilters>({})
 
     // Load saved view mode from localStorage
     useEffect(() => {
@@ -347,6 +389,31 @@ export default function Projects() {
     useEffect(() => {
         localStorage.setItem('projectsViewMode', viewMode)
     }, [viewMode])
+
+    // Load actual findings counts and severity from localStorage
+    useEffect(() => {
+        const data: Record<string, any> = {}
+        projects.forEach(project => {
+            const storageKey = `findings_${project.id}`
+            const stored = localStorage.getItem(storageKey)
+            if (stored) {
+                try {
+                    const findings = JSON.parse(stored)
+                    const breakdown = { critical: 0, high: 0, medium: 0, low: 0 }
+                    findings.forEach((f: any) => {
+                        const s = f.severity.toLowerCase() as keyof typeof breakdown
+                        if (breakdown[s] !== undefined) breakdown[s]++
+                    })
+                    data[project.id] = { count: findings.length, severity: breakdown }
+                } catch (e) {
+                    data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
+                }
+            } else {
+                data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
+            }
+        })
+        setProjectFindingsData(data)
+    }, [projects])
 
     // Filter management functions
     const removeFilter = (id: string) => {
@@ -362,17 +429,76 @@ export default function Projects() {
         setSearchQuery('')
     }
 
-    const openFilterDialog = () => {
-        console.log('Open filter dialog')
-    }
+
 
     const openAddProjectDialog = () => {
         setAddProjectDialogOpen(true)
     }
 
     const handleProjectAdded = (newProject: any) => {
-        setProjects([...projects, newProject])
-        console.log('New project added:', newProject)
+        if (editingProject) {
+            // Update existing project
+            const updatedProjects = projects.map(p => p.id === editingProject.id ? { ...p, ...newProject, id: editingProject.id } : p)
+            setProjects(updatedProjects)
+            localStorage.setItem('projects', JSON.stringify(updatedProjects))
+            setEditingProject(null)
+        } else {
+            // Add new project
+            const updatedProjects = [...projects, newProject]
+            setProjects(updatedProjects)
+            localStorage.setItem('projects', JSON.stringify(updatedProjects))
+        }
+    }
+
+    const handleViewDetails = (project: Project) => {
+        setViewingProject(project)
+    }    // Could navigate to a detail page or expand the card
+
+
+    const handleEditProject = (project: Project) => {
+        setEditingProject(project)
+        setAddProjectDialogOpen(true)
+    }
+
+    const handleGenerateReport = (project: Project) => {
+        navigate(`/reports/${project.id}`)
+    }
+
+    const handleDeleteProject = (project: Project) => {
+        setDeletingProject(project)
+    }
+
+    const confirmDeleteProject = () => {
+        if (deletingProject) {
+            const updatedProjects = projects.filter(p => p.id !== deletingProject.id)
+            setProjects(updatedProjects)
+            localStorage.setItem('projects', JSON.stringify(updatedProjects))
+            // Also delete associated findings
+            localStorage.removeItem(`findings_${deletingProject.id}`)
+            setDeletingProject(null)
+        }
+    }
+
+    const openFilterDialog = () => {
+        setFilterDialogOpen(true)
+    }
+
+    const projectFilterConfig: FilterConfig = {
+        status: {
+            label: 'Status',
+            type: 'multiselect',
+            options: ['Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled']
+        },
+        priority: {
+            label: 'Priority',
+            type: 'select',
+            options: ['Critical', 'High', 'Medium', 'Low']
+        },
+        type: {
+            label: 'Type',
+            type: 'multiselect',
+            options: ['External', 'Internal', 'Compliance']
+        }
     }
 
     // Calculate stats
@@ -381,18 +507,86 @@ export default function Projects() {
         activeProjects: projects.filter(p => p.status === 'In Progress').length,
         completedProjects: projects.filter(p => p.status === 'Completed').length,
         overdueProjects: projects.filter(p => p.endDate < new Date() && p.status !== 'Completed').length,
-        totalFindings: projects.reduce((sum, p) => sum + p.findingsCount, 0),
-        criticalFindings: projects.reduce((sum, p) => sum + p.findingsBySeverity.critical, 0)
+        totalFindings: Object.values(projectFindingsData).reduce((sum, data) => sum + data.count, 0),
+        criticalFindings: Object.values(projectFindingsData).reduce((sum, data) => sum + data.severity.critical, 0)
     }
 
     // Filter projects based on search
-    const filteredProjects = projects.filter(project =>
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.methodology.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.complianceFrameworks.some(f => f.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
+    const filteredProjects = useMemo(() => {
+        let result = projects.filter(project => {
+            const lowerCaseSearchQuery = searchQuery.toLowerCase();
+            const matchesSearch = project.name.toLowerCase().includes(lowerCaseSearchQuery) ||
+                project.clientName.toLowerCase().includes(lowerCaseSearchQuery) ||
+                project.type.toLowerCase().includes(lowerCaseSearchQuery) ||
+                project.methodology.toLowerCase().includes(lowerCaseSearchQuery) ||
+                project.complianceFrameworks.some(f => f.toLowerCase().includes(lowerCaseSearchQuery));
+
+            const matchesFilters = Object.entries(appliedFilters).every(([key, value]) => {
+                if (!value || (Array.isArray(value) && value.length === 0)) return true
+
+                // Handle specific filter keys
+                if (key === 'status') {
+                    return (value as string[]).includes(project.status)
+                }
+                if (key === 'priority') {
+                    return project.priority === (value as string)
+                }
+                if (key === 'type') {
+                    return (value as string[]).includes(project.type)
+                }
+
+                return true
+            })
+
+            return matchesSearch && matchesFilters
+        })
+
+        // Apply sorting
+        if (sortConfig) {
+            result.sort((a, b) => {
+                const { key, direction } = sortConfig
+                let comparison = 0
+
+                switch (key) {
+                    case 'name':
+                    case 'clientName':
+                    case 'status':
+                        comparison = a[key].localeCompare(b[key])
+                        break
+                    case 'priority':
+                        const priorityOrder: Record<string, number> = { Critical: 3, High: 2, Medium: 1, Low: 0 }
+                        comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0)
+                        break
+                    case 'progress':
+                        comparison = a.progress - b.progress
+                        break
+                    case 'startDate': // Timeline
+                        comparison = a.startDate.getTime() - b.startDate.getTime()
+                        break
+                    case 'teamMembers': // Team - sort by lead tester
+                        comparison = a.leadTester.localeCompare(b.leadTester)
+                        break
+                    default:
+                        comparison = 0
+                }
+
+                return direction === 'asc' ? comparison : -comparison
+            })
+        }
+
+        return result
+    }, [projects, searchQuery, appliedFilters, sortConfig])
+
+    const handleSort = (key: string) => {
+        setSortConfig(current => {
+            if (current?.key === key) {
+                return current.direction === 'asc'
+                    ? { key, direction: 'desc' }
+                    : null
+            }
+            return { key, direction: 'asc' }
+        })
+    };
 
     return (
         <div className="space-y-6">
@@ -411,14 +605,14 @@ export default function Projects() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     icon={<FolderKanban className="w-6 h-6" />}
                     label="Total Projects"
                     value={stats.totalProjects}
                     trend="+15%"
                     trendUp={true}
-                    color="blue"
+                    {...statCardColors.blue}
                 />
                 <StatCard
                     icon={<PlayCircle className="w-6 h-6" />}
@@ -426,7 +620,7 @@ export default function Projects() {
                     value={stats.activeProjects}
                     trend="+8%"
                     trendUp={true}
-                    color="green"
+                    {...statCardColors.green}
                 />
                 <StatCard
                     icon={<CheckCircle2 className="w-6 h-6" />}
@@ -434,7 +628,7 @@ export default function Projects() {
                     value={stats.completedProjects}
                     trend="+12%"
                     trendUp={true}
-                    color="purple"
+                    {...statCardColors.purple}
                 />
                 <StatCard
                     icon={<AlertCircle className="w-6 h-6" />}
@@ -442,7 +636,7 @@ export default function Projects() {
                     value={stats.criticalFindings}
                     badge={stats.overdueProjects}
                     badgeLabel="Overdue"
-                    color="red"
+                    {...statCardColors.red}
                 />
             </div>
 
@@ -593,9 +787,37 @@ export default function Projects() {
             {/* Content Views */}
             {!isLoading && filteredProjects.length > 0 && (
                 <>
-                    {viewMode === 'card' && <CardView projects={filteredProjects} />}
-                    {viewMode === 'table' && <TableView projects={filteredProjects} />}
-                    {viewMode === 'timeline' && <TimelineView projects={filteredProjects} />}
+                    {viewMode === 'card' && <CardView
+                        projects={filteredProjects}
+                        selectedProjectId={selectedProjectId}
+                        setSelectedProjectId={setSelectedProjectId}
+                        projectFindingsData={projectFindingsData}
+                        onViewDetails={handleViewDetails}
+                        onEditProject={handleEditProject}
+                        onGenerateReport={handleGenerateReport}
+                        onDeleteProject={handleDeleteProject}
+                    />}
+                    {viewMode === 'table' && (
+                        <TableView
+                            projects={filteredProjects}
+                            onViewDetails={handleViewDetails}
+                            onEditProject={handleEditProject}
+                            onGenerateReport={handleGenerateReport}
+                            onDeleteProject={handleDeleteProject}
+                            onSort={handleSort}
+                            sortConfig={sortConfig}
+                        />
+                    )}
+
+                    {viewMode === 'timeline' && (
+                        <TimelineView
+                            projects={filteredProjects}
+                            onViewDetails={handleViewDetails}
+                            onEditProject={handleEditProject}
+                            onGenerateReport={handleGenerateReport}
+                            onDeleteProject={handleDeleteProject}
+                        />
+                    )}
                 </>
             )}
 
@@ -631,109 +853,151 @@ export default function Projects() {
 
             <AddProjectDialog
                 open={addProjectDialogOpen}
-                onOpenChange={setAddProjectDialogOpen}
+                onOpenChange={(open) => {
+                    setAddProjectDialogOpen(open)
+                    if (!open) setEditingProject(null)
+                }}
                 onProjectAdded={handleProjectAdded}
                 clients={mockClientsForDropdown}
+                editingProject={editingProject}
+            />
+
+            {/* Project Detail Modal */}
+            <ProjectDetailModal
+                project={viewingProject}
+                open={!!viewingProject}
+                onClose={() => setViewingProject(null)}
+                onEdit={(project) => {
+                    setViewingProject(null)
+                    handleEditProject(project)
+                }}
+                onGenerateReport={(project) => {
+                    setViewingProject(null)
+                    handleGenerateReport(project)
+                }}
+                onDelete={(project) => {
+                    setViewingProject(null)
+                    handleDeleteProject(project)
+                }}
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!deletingProject} onOpenChange={(open) => !open && setDeletingProject(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete "{deletingProject?.name}"? This action cannot be undone and will also delete all associated findings.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteProject} className="bg-red-600 hover:bg-red-700">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Filter Dialog */}
+            <FilterDialog
+                open={filterDialogOpen}
+                onOpenChange={setFilterDialogOpen}
+                filterConfig={projectFilterConfig}
+                activeFilters={appliedFilters}
+                onApplyFilters={setAppliedFilters}
+                title="Filter Projects"
+                description="Apply filters to refine your project list"
             />
         </div>
     )
 }
 
-// Stats Card Component (reused from Clients)
-function StatCard({
-    icon,
-    label,
-    value,
-    trend,
-    trendUp,
-    badge,
-    badgeLabel,
-    color
-}: {
-    icon: React.ReactNode
-    label: string
-    value: number
-    trend?: string
-    trendUp?: boolean
-    badge?: number
-    badgeLabel?: string
-    color: 'blue' | 'green' | 'yellow' | 'red' | 'purple'
-}) {
-    const colorClasses = {
-        blue: 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400',
-        green: 'bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400',
-        yellow: 'bg-yellow-50 dark:bg-yellow-950 text-yellow-600 dark:text-yellow-400',
-        red: 'bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400',
-        purple: 'bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400'
-    }
-
-    return (
-        <Card className={cn('border-l-4', {
-            'border-l-blue-600': color === 'blue',
-            'border-l-green-600': color === 'green',
-            'border-l-yellow-600': color === 'yellow',
-            'border-l-red-600': color === 'red',
-            'border-l-purple-600': color === 'purple'
-        })}>
-            <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                    <div className={cn('p-3 rounded-lg', colorClasses[color])}>
-                        {icon}
-                    </div>
-                    {trend && (
-                        <Badge variant="secondary" className="gap-1">
-                            {trendUp ? (
-                                <TrendingUp className="w-3 h-3 text-green-600" />
-                            ) : (
-                                <TrendingDown className="w-3 h-3 text-red-600" />
-                            )}
-                            {trend}
-                        </Badge>
-                    )}
-                </div>
-                <div className="mt-4">
-                    <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{value}</h3>
-                        {badge !== undefined && badge > 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                                {badge} {badgeLabel}
-                            </Badge>
-                        )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{label}</p>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
 // Card View Component
-function CardView({ projects }: { projects: Project[] }) {
+function CardView({
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    projectFindingsData,
+    onViewDetails,
+    onEditProject,
+    onGenerateReport,
+    onDeleteProject
+}: {
+    projects: Project[]
+    selectedProjectId: string | null
+    setSelectedProjectId: (id: string | null) => void
+    projectFindingsData: Record<string, { count: number, severity: { critical: number, high: number, medium: number, low: number } }>
+    onViewDetails: (project: Project) => void
+    onEditProject: (project: Project) => void
+    onGenerateReport: (project: Project) => void
+    onDeleteProject: (project: Project) => void
+}) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {projects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
+                <ProjectCard
+                    key={project.id}
+                    project={project}
+                    isSelected={selectedProjectId === project.id}
+                    onSelect={() => setSelectedProjectId(project.id)}
+                    findingsCount={projectFindingsData[project.id]?.count ?? 0}
+                    findingsSeverity={projectFindingsData[project.id]?.severity}
+                    onViewDetails={onViewDetails}
+                    onEditProject={onEditProject}
+                    onGenerateReport={onGenerateReport}
+                    onDeleteProject={onDeleteProject}
+                />
             ))}
         </div>
     )
 }
 
 // Project Card Component
-function ProjectCard({ project }: { project: Project }) {
-
-
+function ProjectCard({
+    project,
+    isSelected,
+    onSelect,
+    findingsCount,
+    findingsSeverity,
+    onViewDetails,
+    onEditProject,
+    onGenerateReport,
+    onDeleteProject
+}: {
+    project: Project
+    isSelected: boolean
+    onSelect: () => void
+    findingsCount: number
+    findingsSeverity?: { critical: number, high: number, medium: number, low: number }
+    onViewDetails: (project: Project) => void
+    onEditProject: (project: Project) => void
+    onGenerateReport: (project: Project) => void
+    onDeleteProject: (project: Project) => void
+}) {
     return (
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardContent className="p-6">
+        <Card
+            className={cn(
+                "hover:shadow-lg transition-all cursor-pointer group relative",
+                isSelected
+                    ? "border-2 border-primary shadow-md bg-primary/5"
+                    : "hover:border-primary/50"
+            )}
+            onClick={onSelect}
+        >
+            {isSelected && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg" />
+            )}
+            <CardContent className="p-4">
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-start gap-3 flex-1">
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
                         <div className="text-2xl">{project.clientLogoUrl}</div>
                         <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                                 {project.name}
                             </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-0.5">
                                 <Building2 className="w-3 h-3" />
                                 {project.clientName}
                             </p>
@@ -746,20 +1010,20 @@ function ProjectCard({ project }: { project: Project }) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onViewDetails(project)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEditProject(project)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit Project
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onGenerateReport(project)}>
                                 <FileText className="h-4 w-4 mr-2" />
                                 Generate Report
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem className="text-red-600" onClick={() => onDeleteProject(project)}>
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete Project
                             </DropdownMenuItem>
@@ -768,80 +1032,80 @@ function ProjectCard({ project }: { project: Project }) {
                 </div>
 
                 {/* Status and Priority */}
-                <div className="flex gap-2 mb-4">
-                    <Badge className={cn('text-xs font-medium', getStatusColor(project.status))}>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                    <Badge className={cn('text-[10px] font-medium px-1.5 py-0', getStatusColor(project.status))}>
                         {project.status}
                     </Badge>
-                    <Badge variant="outline" className={cn('text-xs font-medium border-2', getPriorityColor(project.priority))}>
+                    <Badge variant="outline" className={cn('text-[10px] font-medium border px-1.5 py-0', getPriorityColor(project.priority))}>
                         {project.priority}
                     </Badge>
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                         {project.type}
                     </Badge>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mb-4">
-                    <div className="flex items-center justify-between text-sm mb-2">
+                <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
                         <span className="text-gray-600 dark:text-gray-400">Progress</span>
                         <span className="font-semibold text-gray-900 dark:text-white">{project.progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                         <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
+                            className="bg-blue-600 h-1.5 rounded-full transition-all"
                             style={{ width: `${project.progress}%` }}
                         />
                     </div>
                 </div>
 
                 {/* Timeline */}
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mb-3">
                     <Calendar className="w-4 h-4" />
                     <span>{project.startDate.toLocaleDateString()} - {project.endDate.toLocaleDateString()}</span>
                 </div>
 
                 {/* Team Members */}
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                     <div className="flex -space-x-2">
                         {project.teamMembers.slice(0, 3).map((member, _idx) => (
-                            <Avatar key={member.id} className="h-8 w-8 border-2 border-white dark:border-gray-800">
+                            <Avatar key={member.id} className="h-6 w-6 border-2 border-white dark:border-gray-800">
                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
                                     {member.name.split(' ').map(n => n[0]).join('')}
                                 </AvatarFallback>
                             </Avatar>
                         ))}
                         {project.teamMembers.length > 3 && (
-                            <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium">
+                            <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-[10px] font-medium">
                                 +{project.teamMembers.length - 3}
                             </div>
                         )}
                     </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
                         Lead: {project.leadTester}
                     </span>
                 </div>
 
-                {/* Findings Summary */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2 text-sm">
+                {/* Findings Summary - Use dynamic count */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-1.5 text-xs">
                         <Target className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                        <span className="font-semibold text-gray-900 dark:text-white">{project.findingsCount}</span>
-                        <span className="text-gray-600 dark:text-gray-400">Findings</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{findingsCount}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Finding{findingsCount !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="flex gap-1">
-                        {project.findingsBySeverity.critical > 0 && (
-                            <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                                {project.findingsBySeverity.critical} C
+                        {(findingsSeverity?.critical ?? project.findingsBySeverity.critical) > 0 && (
+                            <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                                {findingsSeverity?.critical ?? project.findingsBySeverity.critical} C
                             </Badge>
                         )}
-                        {project.findingsBySeverity.high > 0 && (
-                            <Badge className="text-xs px-1.5 py-0 bg-orange-500 hover:bg-orange-600">
-                                {project.findingsBySeverity.high} H
+                        {(findingsSeverity?.high ?? project.findingsBySeverity.high) > 0 && (
+                            <Badge className="text-[10px] px-1 py-0 bg-orange-500 hover:bg-orange-600">
+                                {findingsSeverity?.high ?? project.findingsBySeverity.high} H
                             </Badge>
                         )}
-                        {project.findingsBySeverity.medium > 0 && (
-                            <Badge className="text-xs px-1.5 py-0 bg-yellow-500 hover:bg-yellow-600 text-black">
-                                {project.findingsBySeverity.medium} M
+                        {(findingsSeverity?.medium ?? project.findingsBySeverity.medium) > 0 && (
+                            <Badge className="text-[10px] px-1 py-0 bg-yellow-500 hover:bg-yellow-600 text-black">
+                                {findingsSeverity?.medium ?? project.findingsBySeverity.medium} M
                             </Badge>
                         )}
                     </div>
@@ -852,34 +1116,55 @@ function ProjectCard({ project }: { project: Project }) {
 }
 
 // Table View Component
-function TableView({ projects }: { projects: Project[] }) {
+function TableView({
+    projects,
+    onViewDetails,
+    onEditProject,
+    onGenerateReport,
+    onDeleteProject,
+    onSort,
+    sortConfig
+}: {
+    projects: Project[]
+    onViewDetails: (project: Project) => void
+    onEditProject: (project: Project) => void
+    onGenerateReport: (project: Project) => void
+    onDeleteProject: (project: Project) => void
+    onSort: (key: string) => void
+    sortConfig: { key: string; direction: 'asc' | 'desc' } | null
+}) {
+    const SortIcon = ({ columnKey }: { columnKey: string }) => {
+        if (sortConfig?.key !== columnKey) return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        return sortConfig.direction === 'asc'
+            ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600" />
+            : <ArrowDown className="w-4 h-4 ml-1 text-blue-600" />
+    }
+
+    const renderHeader = (label: string, key: string) => (
+        <th
+            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+            onClick={() => onSort(key)}
+        >
+            <div className="flex items-center">
+                {label}
+                <SortIcon columnKey={key} />
+            </div>
+        </th>
+    )
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Project
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Client
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Priority
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Progress
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Timeline
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Team
-                            </th>
+                            {renderHeader('Project', 'name')}
+                            {renderHeader('Client', 'clientName')}
+                            {renderHeader('Status', 'status')}
+                            {renderHeader('Priority', 'priority')}
+                            {renderHeader('Progress', 'progress')}
+                            {renderHeader('Timeline', 'startDate')}
+                            {renderHeader('Team', 'teamMembers')}
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Actions
                             </th>
@@ -916,7 +1201,7 @@ function TableView({ projects }: { projects: Project[] }) {
                                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                                             <div
                                                 className="bg-blue-600 h-1.5 rounded-full"
-                                                style={{ width: `${project.progress}%` }}
+                                                style={{ width: `${project.progress}% ` }}
                                             />
                                         </div>
                                     </div>
@@ -951,16 +1236,20 @@ function TableView({ projects }: { projects: Project[] }) {
                                             </button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onViewDetails(project)}>
                                                 <Eye className="h-4 w-4 mr-2" />
                                                 View Details
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onEditProject(project)}>
                                                 <Edit className="h-4 w-4 mr-2" />
                                                 Edit Project
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onGenerateReport(project)}>
+                                                <FileText className="h-4 w-4 mr-2" />
+                                                Generate Report
+                                            </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-red-600">
+                                            <DropdownMenuItem className="text-red-600" onClick={() => onDeleteProject(project)}>
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Delete Project
                                             </DropdownMenuItem>
@@ -977,7 +1266,20 @@ function TableView({ projects }: { projects: Project[] }) {
 }
 
 // Timeline View Component
-function TimelineView({ projects }: { projects: Project[] }) {
+// Timeline View Component
+function TimelineView({
+    projects,
+    onViewDetails,
+    onEditProject,
+    onGenerateReport,
+    onDeleteProject
+}: {
+    projects: Project[]
+    onViewDetails: (project: Project) => void
+    onEditProject: (project: Project) => void
+    onGenerateReport: (project: Project) => void
+    onDeleteProject: (project: Project) => void
+}) {
     if (projects.length === 0) return null
 
     // Calculate timeline range based on projects
@@ -1024,12 +1326,40 @@ function TimelineView({ projects }: { projects: Project[] }) {
 
                             return (
                                 <div key={project.id} className="flex hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                                    <div className="w-64 flex-shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 flex items-center gap-3 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 transition-colors">
-                                        <div className="text-xl">{project.clientLogoUrl}</div>
-                                        <div className="min-w-0">
-                                            <div className="font-medium text-sm text-gray-900 dark:text-white truncate">{project.name}</div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{project.clientName}</div>
+                                    <div className="w-64 flex-shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 flex items-center justify-between sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 transition-colors">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="text-xl">{project.clientLogoUrl}</div>
+                                            <div className="min-w-0">
+                                                <div className="font-medium text-sm text-gray-900 dark:text-white truncate">{project.name}</div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{project.clientName}</div>
+                                            </div>
                                         </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button className="p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors opacity-0 group-hover:opacity-100">
+                                                    <MoreVertical className="w-4 h-4" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                                <DropdownMenuItem onClick={() => onViewDetails(project)}>
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    View Details
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => onEditProject(project)}>
+                                                    <Edit className="h-4 w-4 mr-2" />
+                                                    Edit Project
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => onGenerateReport(project)}>
+                                                    <FileText className="h-4 w-4 mr-2" />
+                                                    Generate Report
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-red-600" onClick={() => onDeleteProject(project)}>
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete Project
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                     <div className="flex-1 relative h-16">
                                         {/* Grid lines */}
@@ -1053,8 +1383,8 @@ function TimelineView({ projects }: { projects: Project[] }) {
                                                                             "bg-gray-400"
                                                         )}
                                                         style={{
-                                                            left: `${Math.max(0, left)}%`,
-                                                            width: `${Math.min(100 - Math.max(0, left), width)}%`
+                                                            left: `${Math.max(0, left)}% `,
+                                                            width: `${Math.min(100 - Math.max(0, left), width)}% `
                                                         }}
                                                     >
                                                         {width > 5 && (

@@ -1,23 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     Search,
     Plus,
-    X,
-    FileJson,
-    Copy,
-    CheckCircle2,
     Shield,
     Smartphone,
     Globe,
     Server,
     Database,
     Cpu,
-    FileText
+    FileText,
+    Upload
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
     Select,
@@ -27,17 +24,36 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
-import { vulnerabilityDatabase, Vulnerability } from '../data/vulnerabilities'
+import { vulnerabilityDatabase } from '../data/vulnerabilities'
+import { AddFindingDialog } from '@/components/AddFindingDialog'
+import { useToast } from "@/components/ui/use-toast"
 
 export default function Findings() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string>('All')
     const [selectedSeverity, setSelectedSeverity] = useState<string>('All')
-    const [reportCart, setReportCart] = useState<Vulnerability[]>([])
-    const [showCopiedToast, setShowCopiedToast] = useState(false)
+    const [customFindings, setCustomFindings] = useState<any[]>([])
+    const [addDialogOpen, setAddDialogOpen] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const { toast } = useToast()
+
+    // Load custom findings from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem('customFindings')
+        if (saved) {
+            try {
+                setCustomFindings(JSON.parse(saved))
+            } catch (e) {
+                console.error('Failed to parse custom findings', e)
+            }
+        }
+    }, [])
+
+    // Combine static and custom findings
+    const allFindings = [...customFindings, ...vulnerabilityDatabase]
 
     // Filter Logic
-    const filteredFindings = vulnerabilityDatabase.filter(finding => {
+    const filteredFindings = allFindings.filter(finding => {
         const matchesSearch = finding.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             finding.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
             finding.owasp_reference.toLowerCase().includes(searchQuery.toLowerCase())
@@ -46,45 +62,6 @@ export default function Findings() {
 
         return matchesSearch && matchesCategory && matchesSeverity
     })
-
-    // Cart Logic
-    const addToCart = (finding: Vulnerability) => {
-        if (!reportCart.find(f => f.id === finding.id)) {
-            setReportCart([...reportCart, finding])
-        }
-    }
-
-    const removeFromCart = (id: string) => {
-        setReportCart(reportCart.filter(f => f.id !== id))
-    }
-
-    // Export Logic
-    const exportJSON = () => {
-        const dataStr = JSON.stringify(reportCart, null, 2)
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
-        const exportFileDefaultName = 'vulnerability_report.json'
-
-        const linkElement = document.createElement('a')
-        linkElement.setAttribute('href', dataUri)
-        linkElement.setAttribute('download', exportFileDefaultName)
-        linkElement.click()
-    }
-
-    const copyMarkdown = () => {
-        let markdown = '# Vulnerability Report\n\n'
-        reportCart.forEach(finding => {
-            markdown += `## ${finding.title}\n`
-            markdown += `**Severity:** ${finding.severity}\n`
-            markdown += `**OWASP Reference:** ${finding.owasp_reference}\n\n`
-            markdown += `### Description\n${finding.description}\n\n`
-            markdown += `### Impact\n${finding.impact}\n\n`
-            markdown += `### Recommendation\n${finding.recommendation}\n\n`
-            markdown += '---\n\n'
-        })
-        navigator.clipboard.writeText(markdown)
-        setShowCopiedToast(true)
-        setTimeout(() => setShowCopiedToast(false), 3000)
-    }
 
     // Helper for Severity Colors
     const getSeverityColor = (severity: string) => {
@@ -101,107 +78,163 @@ export default function Findings() {
     const getCategoryIcon = (category: string) => {
         switch (category) {
             case 'Web': return <Globe className="w-4 h-4" />
-            case 'API': return <Server className="w-4 h-4" />
             case 'Mobile': return <Smartphone className="w-4 h-4" />
-            case 'LLM': return <Cpu className="w-4 h-4" />
-            default: return <Database className="w-4 h-4" />
+            case 'Network': return <Server className="w-4 h-4" />
+            case 'Database': return <Database className="w-4 h-4" />
+            case 'Cloud': return <Cpu className="w-4 h-4" />
+            default: return <Shield className="w-4 h-4" />
         }
     }
 
+    const handleAddFinding = (newFinding: any) => {
+        const updatedFindings = [newFinding, ...customFindings]
+        setCustomFindings(updatedFindings)
+        localStorage.setItem('customFindings', JSON.stringify(updatedFindings))
+        toast({
+            title: "Finding Added",
+            description: "New custom finding has been added to the database.",
+        })
+    }
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        // Mock import for now - in a real app we'd parse XML/CSV here
+        // Just simulating a successful import of a dummy finding
+        setTimeout(() => {
+            const importedFinding = {
+                id: `imported-${Date.now()}`,
+                title: `Imported: ${file.name.split('.')[0]} Vulnerability`,
+                severity: 'High',
+                category: 'Network',
+                description: 'This finding was imported from an external scanner report.',
+                remediation: 'Review the imported data and verify the finding.',
+                owasp_reference: 'N/A'
+            }
+
+            const updatedFindings = [importedFinding, ...customFindings]
+            setCustomFindings(updatedFindings)
+            localStorage.setItem('customFindings', JSON.stringify(updatedFindings))
+
+            toast({
+                title: "Import Successful",
+                description: `Successfully imported findings from ${file.name}`,
+            })
+
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }, 1000)
+    }
+
     return (
-        <div className="h-[calc(100vh-2rem)] flex flex-col gap-6">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Findings Database</h1>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">
-                    Browse standard vulnerabilities and build your report
-                </p>
+        <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Findings Database</h1>
+                    <p className="text-gray-500 dark:text-gray-400">Browse standard vulnerabilities and build your report</p>
+                </div>
+                <div className="flex gap-2">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".xml,.csv,.json"
+                        onChange={handleFileChange}
+                    />
+                    <Button variant="outline" onClick={handleImportClick}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Import Findings
+                    </Button>
+                    <Button className="bg-primary hover:bg-primary/90" onClick={() => setAddDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Custom Finding
+                    </Button>
+                </div>
             </div>
 
-            <div className="flex flex-1 gap-6 overflow-hidden">
-                {/* Left Column: Findings Library */}
-                <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-                    {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                        <div className="relative flex-1 min-w-[200px]">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                                placeholder="Search findings..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                            <SelectTrigger className="w-[140px]">
-                                <SelectValue placeholder="Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Categories</SelectItem>
-                                <SelectItem value="Web">Web</SelectItem>
-                                <SelectItem value="API">API</SelectItem>
-                                <SelectItem value="Mobile">Mobile</SelectItem>
-                                <SelectItem value="LLM">LLM</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
-                            <SelectTrigger className="w-[140px]">
-                                <SelectValue placeholder="Severity" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Severities</SelectItem>
-                                <SelectItem value="Critical">Critical</SelectItem>
-                                <SelectItem value="High">High</SelectItem>
-                                <SelectItem value="Medium">Medium</SelectItem>
-                                <SelectItem value="Low">Low</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+            {/* Search and Filter Bar */}
+            <div className="flex flex-col md:flex-row gap-4 flex-shrink-0">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                        placeholder="Search findings..."
+                        className="pl-10"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Categories</SelectItem>
+                        <SelectItem value="Web">Web</SelectItem>
+                        <SelectItem value="Mobile">Mobile</SelectItem>
+                        <SelectItem value="Network">Network</SelectItem>
+                        <SelectItem value="Database">Database</SelectItem>
+                        <SelectItem value="Cloud">Cloud</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Severity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Severities</SelectItem>
+                        <SelectItem value="Critical">Critical</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
 
-                    {/* Findings List */}
-                    <ScrollArea className="flex-1 pr-4">
-                        <div className="grid grid-cols-1 gap-4">
+            {/* Main Content - Single Column */}
+            <div className="flex-1 min-h-0">
+                <div className="max-w-5xl mx-auto h-full">
+                    <ScrollArea className="h-full pr-4">
+                        <div className="grid grid-cols-1 gap-4 pb-8">
                             {filteredFindings.map((finding) => (
-                                <Card key={finding.id} className="hover:shadow-md transition-shadow border-l-4" style={{ borderLeftColor: finding.severity === 'Critical' ? '#EF4444' : finding.severity === 'High' ? '#F97316' : finding.severity === 'Medium' ? '#EAB308' : '#22C55E' }}>
+                                <Card key={finding.id} className="hover:shadow-md transition-all hover:scale-[1.01] cursor-pointer group border-l-4 border-l-transparent hover:border-l-primary">
                                     <CardHeader className="pb-2">
-                                        <div className="flex justify-between items-start">
+                                        <div className="flex items-start justify-between">
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
-                                                    <CardTitle className="text-lg">{finding.title}</CardTitle>
-                                                    <Badge variant="outline" className={cn("flex items-center gap-1", getSeverityColor(finding.severity))}>
+                                                    <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                        {finding.title}
+                                                    </CardTitle>
+                                                    <Badge variant="outline" className={cn("text-xs font-medium px-2 py-0.5", getSeverityColor(finding.severity))}>
                                                         {finding.severity}
                                                     </Badge>
-                                                    <Badge variant="secondary" className="flex items-center gap-1">
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    <span className="font-mono">{finding.id}</span>
+                                                    <span>•</span>
+                                                    <span className="flex items-center gap-1">
                                                         {getCategoryIcon(finding.category)}
                                                         {finding.category}
-                                                    </Badge>
+                                                    </span>
                                                 </div>
-                                                <CardDescription className="font-mono text-xs">
-                                                    {finding.owasp_reference}
-                                                </CardDescription>
                                             </div>
                                             <Button
                                                 size="sm"
-                                                variant={reportCart.find(f => f.id === finding.id) ? "secondary" : "default"}
-                                                onClick={() => addToCart(finding)}
-                                                disabled={!!reportCart.find(f => f.id === finding.id)}
+                                                variant="ghost"
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity"
                                             >
-                                                {reportCart.find(f => f.id === finding.id) ? (
-                                                    <>
-                                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                                        Added
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Plus className="w-4 h-4 mr-2" />
-                                                        Add to Report
-                                                    </>
-                                                )}
+                                                <FileText className="w-4 h-4 mr-2" />
+                                                View Details
                                             </Button>
                                         </div>
                                     </CardHeader>
                                     <CardContent>
-                                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">
                                             {finding.description}
                                         </p>
                                     </CardContent>
@@ -216,78 +249,13 @@ export default function Findings() {
                         </div>
                     </ScrollArea>
                 </div>
-
-                {/* Right Column: Report Builder (Cart) */}
-                <div className="w-96 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg flex flex-col shadow-inner">
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-lg">
-                        <div className="flex items-center justify-between mb-1">
-                            <h2 className="font-semibold text-lg flex items-center gap-2">
-                                <FileText className="w-5 h-5" />
-                                Report Builder
-                            </h2>
-                            <Badge variant="secondary">{reportCart.length} items</Badge>
-                        </div>
-                        <p className="text-xs text-gray-500">Selected findings for export</p>
-                    </div>
-
-                    <ScrollArea className="flex-1 p-4">
-                        <div className="space-y-3">
-                            {reportCart.map((finding) => (
-                                <div key={finding.id} className="bg-white dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm group relative">
-                                    <button
-                                        onClick={() => removeFromCart(finding.id)}
-                                        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                    <h4 className="font-medium text-sm pr-6">{finding.title}</h4>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Badge variant="outline" className={cn("text-[10px] px-1 py-0", getSeverityColor(finding.severity))}>
-                                            {finding.severity}
-                                        </Badge>
-                                        <span className="text-xs text-gray-500 font-mono">{finding.id}</span>
-                                    </div>
-                                </div>
-                            ))}
-                            {reportCart.length === 0 && (
-                                <div className="text-center py-8 text-gray-400">
-                                    <p className="text-sm">Your report is empty.</p>
-                                    <p className="text-xs mt-1">Add findings from the library.</p>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-
-                    <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg space-y-2">
-                        <Button
-                            className="w-full"
-                            variant="outline"
-                            onClick={exportJSON}
-                            disabled={reportCart.length === 0}
-                        >
-                            <FileJson className="w-4 h-4 mr-2" />
-                            Export JSON
-                        </Button>
-                        <Button
-                            className="w-full"
-                            onClick={copyMarkdown}
-                            disabled={reportCart.length === 0}
-                        >
-                            {showCopiedToast ? (
-                                <>
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Copied!
-                                </>
-                            ) : (
-                                <>
-                                    <Copy className="w-4 h-4 mr-2" />
-                                    Copy Markdown
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
             </div>
+            {/* Add Finding Dialog */}
+            <AddFindingDialog
+                open={addDialogOpen}
+                onOpenChange={setAddDialogOpen}
+                onFindingAdded={handleAddFinding}
+            />
         </div>
     )
 }

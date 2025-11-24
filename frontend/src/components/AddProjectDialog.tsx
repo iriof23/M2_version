@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -50,9 +50,10 @@ interface AddProjectDialogProps {
     onOpenChange: (open: boolean) => void
     onProjectAdded?: (project: any) => void
     clients: any[] // Pass existing clients for dropdown
+    editingProject?: any // Project to edit (if provided, dialog is in edit mode)
 }
 
-export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients }: AddProjectDialogProps) {
+export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, editingProject }: AddProjectDialogProps) {
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
         // Step 1: Basics
@@ -64,7 +65,7 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients }
 
         // Step 2: Scope & Methodology
         scope: [] as string[],
-        methodology: 'PTES',
+        methodology: 'OWASP Testing Guide v4',
         complianceFrameworks: [] as string[],
 
         // Step 3: Timeline & Priority
@@ -77,6 +78,46 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients }
         leadTester: '',
         teamMembers: [] as string[]
     })
+
+    // Update form data when editingProject changes
+    useEffect(() => {
+        if (editingProject) {
+            setFormData({
+                name: editingProject.name || '',
+                clientId: editingProject.clientId || '',
+                clientName: editingProject.clientName || '',
+                type: editingProject.type || 'External',
+                description: editingProject.description || '',
+                scope: editingProject.scope || [],
+                methodology: editingProject.methodology || 'OWASP Testing Guide v4',
+                complianceFrameworks: editingProject.complianceFrameworks || [],
+                startDate: editingProject.startDate ? new Date(editingProject.startDate) : undefined,
+                endDate: editingProject.endDate ? new Date(editingProject.endDate) : undefined,
+                priority: editingProject.priority || 'Medium',
+                status: editingProject.status || 'Planning',
+                leadTester: editingProject.leadTester || '',
+                teamMembers: editingProject.teamMembers?.map((m: any) => m.id || m) || []
+            })
+        } else {
+            // Reset form when not editing
+            setFormData({
+                name: '',
+                clientId: '',
+                clientName: '',
+                type: 'External',
+                description: '',
+                scope: [],
+                methodology: 'OWASP Testing Guide v4',
+                complianceFrameworks: [],
+                startDate: undefined,
+                endDate: undefined,
+                priority: 'Medium',
+                status: 'Planning',
+                leadTester: '',
+                teamMembers: []
+            })
+        }
+    }, [editingProject, open])
 
     const [scopeInput, setScopeInput] = useState('')
 
@@ -333,11 +374,11 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients }
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="PTES">PTES (Penetration Testing Execution Standard)</SelectItem>
-                                        <SelectItem value="OWASP">OWASP Testing Guide v4</SelectItem>
-                                        <SelectItem value="NIST">NIST SP 800-115</SelectItem>
+                                        <SelectItem value="PTES (Penetration Testing Execution Standard)">PTES (Penetration Testing Execution Standard)</SelectItem>
+                                        <SelectItem value="OWASP Testing Guide v4">OWASP Testing Guide v4</SelectItem>
+                                        <SelectItem value="NIST SP 800-115">NIST SP 800-115</SelectItem>
                                         <SelectItem value="OSSTMM">OSSTMM</SelectItem>
-                                        <SelectItem value="Custom">Custom Methodology</SelectItem>
+                                        <SelectItem value="Custom Methodology">Custom Methodology</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

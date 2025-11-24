@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Users,
   FileText,
@@ -10,8 +10,6 @@ import {
   Search,
   Filter,
   Download,
-  TrendingUp,
-  TrendingDown,
   Building2,
   Mail,
   Phone,
@@ -27,12 +25,17 @@ import {
   StickyNote,
   Archive,
   X,
-  Copy
+  Copy,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { StatCard, statCardColors } from '@/components/StatCard'
+import { FilterDialog, FilterConfig, ActiveFilters } from '@/components/FilterDialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -225,11 +228,14 @@ export default function Clients() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [appliedFilters, setAppliedFilters] = useState<ActiveFilters>({})
   const [clients, setClients] = useState(mockClients)
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [viewingClient, setViewingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
 
   // Load saved view mode from localStorage
   useEffect(() => {
@@ -256,11 +262,6 @@ export default function Clients() {
 
   const clearSearch = () => {
     setSearchQuery('')
-  }
-
-  const openFilterDialog = () => {
-    // Placeholder for filter dialog
-    console.log('Open filter dialog')
   }
 
   const openAddClientDialog = () => {
@@ -326,6 +327,28 @@ export default function Clients() {
   }
 
   // Calculate stats
+  const openFilterDialog = () => {
+    setFilterDialogOpen(true)
+  }
+
+  const clientFilterConfig: FilterConfig = {
+    status: {
+      label: 'Status',
+      type: 'multiselect',
+      options: ['Active', 'Inactive', 'Prospect', 'Archived']
+    },
+    riskLevel: {
+      label: 'Risk Level',
+      type: 'select',
+      options: ['High', 'Medium', 'Low']
+    },
+    industry: {
+      label: 'Industry',
+      type: 'multiselect',
+      options: ['Financial Services', 'Technology', 'Healthcare', 'Retail', 'Banking']
+    }
+  }
+
   const stats = {
     totalClients: clients.length,
     activeProjects: clients.reduce((sum, c) => sum + c.projectsCount, 0),
@@ -335,13 +358,74 @@ export default function Clients() {
   }
 
   // Filter clients based on search
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.primaryContact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  // Filter clients based on search
+  const filteredClients = useMemo(() => {
+    let result = clients.filter(client => {
+      const lowerCaseSearchQuery = searchQuery.toLowerCase()
+      const matchesSearch = client.name.toLowerCase().includes(lowerCaseSearchQuery) ||
+        client.industry.toLowerCase().includes(lowerCaseSearchQuery) ||
+        client.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchQuery))
+
+      const matchesFilters = Object.entries(appliedFilters).every(([key, value]) => {
+        if (!value || (Array.isArray(value) && value.length === 0)) return true
+
+        if (key === 'status') {
+          return (value as string[]).includes(client.status)
+        }
+        if (key === 'riskLevel') {
+          return client.riskLevel === (value as string)
+        }
+        if (key === 'industry') {
+          return (value as string[]).includes(client.industry)
+        }
+
+        return true
+      })
+
+      return matchesSearch && matchesFilters
+    })
+
+    // Apply sorting
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const { key, direction } = sortConfig
+        let comparison = 0
+
+        switch (key) {
+          case 'name':
+          case 'primaryContact':
+          case 'industry':
+            comparison = a[key].localeCompare(b[key])
+            break
+          case 'projectsCount':
+          case 'reportsCount':
+          case 'totalFindings':
+            comparison = a[key] - b[key]
+            break
+          case 'lastActivityDate':
+            comparison = a.lastActivityDate.getTime() - b.lastActivityDate.getTime()
+            break
+          default:
+            comparison = 0
+        }
+
+        return direction === 'asc' ? comparison : -comparison
+      })
+    }
+
+    return result
+  }, [clients, searchQuery, appliedFilters, sortConfig])
+
+  const handleSort = (key: string) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return current.direction === 'asc'
+          ? { key, direction: 'desc' }
+          : null
+      }
+      return { key, direction: 'asc' }
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -360,22 +444,22 @@ export default function Clients() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Users className="w-6 h-6" />}
           label="Total Clients"
           value={stats.totalClients}
           trend="+12%"
           trendUp={true}
-          color="blue"
+          {...statCardColors.blue}
         />
         <StatCard
           icon={<FolderOpen className="w-6 h-6" />}
-          label="Active Projects"
+          label="Active Engagements"
           value={stats.activeProjects}
           trend="+8%"
           trendUp={true}
-          color="green"
+          {...statCardColors.green}
         />
         <StatCard
           icon={<FileText className="w-6 h-6" />}
@@ -383,15 +467,15 @@ export default function Clients() {
           value={stats.pendingReports}
           trend="-5%"
           trendUp={false}
-          color="yellow"
+          {...statCardColors.yellow}
         />
         <StatCard
           icon={<AlertTriangle className="w-6 h-6" />}
           label="Open Findings"
           value={stats.openFindings}
           badge={stats.criticalFindings}
-          badgeLabel="critical"
-          color="red"
+          badgeLabel="Critical"
+          {...statCardColors.red}
         />
       </div>
 
@@ -572,6 +656,8 @@ export default function Clients() {
               onDuplicate={handleDuplicateClient}
               onArchive={handleArchiveClient}
               onCopyLink={handleCopyClientLink}
+              onSort={handleSort}
+              sortConfig={sortConfig}
             />
           )}
           {viewMode === 'list' && (
@@ -628,6 +714,17 @@ export default function Clients() {
         editingClient={editingClient}
       />
 
+      {/* Filter Dialog */}
+      <FilterDialog
+        open={filterDialogOpen}
+        onOpenChange={setFilterDialogOpen}
+        filterConfig={clientFilterConfig}
+        activeFilters={appliedFilters}
+        onApplyFilters={setAppliedFilters}
+        title="Filter Clients"
+        description="Apply filters to refine your client list"
+      />
+
       {/* Client Detail Modal */}
       <ClientDetailModal
         client={viewingClient}
@@ -661,93 +758,6 @@ export default function Clients() {
   )
 }
 
-// Enhanced Stats Card Component
-function StatCard({
-  icon,
-  label,
-  value,
-  trend,
-  trendUp,
-  badge,
-  badgeLabel,
-  color
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-  trend?: string
-  trendUp?: boolean
-  badge?: number
-  badgeLabel?: string
-  color: 'blue' | 'green' | 'yellow' | 'red'
-}) {
-  const colorClasses = {
-    blue: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      text: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-100 dark:border-blue-800'
-    },
-    green: {
-      bg: 'bg-green-50 dark:bg-green-900/20',
-      text: 'text-green-600 dark:text-green-400',
-      border: 'border-green-100 dark:border-green-800'
-    },
-    yellow: {
-      bg: 'bg-yellow-50 dark:bg-yellow-900/20',
-      text: 'text-yellow-600 dark:text-yellow-400',
-      border: 'border-yellow-100 dark:border-yellow-800'
-    },
-    red: {
-      bg: 'bg-red-50 dark:bg-red-900/20',
-      text: 'text-red-600 dark:text-red-400',
-      border: 'border-red-100 dark:border-red-800'
-    }
-  }
-
-  const colors = colorClasses[color]
-
-  return (
-    <Card className="relative overflow-hidden hover:shadow-lg transition-shadow border-gray-200 dark:border-gray-700">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          {/* Icon with colored background */}
-          <div className={`p - 3 rounded - lg ${colors.bg} `}>
-            <div className={colors.text}>
-              {icon}
-            </div>
-          </div>
-          {/* Trend badge */}
-          {trend && (
-            <Badge variant="secondary" className="text-xs font-medium">
-              {trendUp ? (
-                <TrendingUp className="h-3 w-3 mr-1" />
-              ) : (
-                <TrendingDown className="h-3 w-3 mr-1" />
-              )}
-              {trend}
-            </Badge>
-          )}
-        </div>
-        {/* Large number */}
-        <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-          {value}
-        </div>
-        {/* Label with optional badge */}
-        {badge !== undefined ? (
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-            <Badge variant="destructive" className="text-xs px-2 py-0.5 font-semibold animate-pulse">
-              {badge} {badgeLabel}
-            </Badge>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 // Card View Component
 interface CardViewProps {
   clients: Client[]
@@ -761,17 +771,17 @@ interface CardViewProps {
 
 function CardView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, onCopyLink }: CardViewProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {clients.map((client) => (
         <div
           key={client.id}
           className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow overflow-hidden group"
         >
           {/* Card Header */}
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="text-4xl">{client.logoUrl}</div>
+                <div className="text-3xl">{client.logoUrl}</div>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">{client.name}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{client.primaryContact}</p>
@@ -816,18 +826,18 @@ function CardView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, o
           </div>
 
           {/* Card Body */}
-          <div className="p-6 space-y-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <div className="p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
               <Mail className="w-4 h-4" />
               <span className="truncate">{client.email}</span>
             </div>
             {client.phone && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <Phone className="w-4 h-4" />
                 <span>{client.phone}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
               <Building2 className="w-4 h-4" />
               <span className="truncate">{client.industry} • {client.companySize}</span>
             </div>
@@ -844,28 +854,28 @@ function CardView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, o
               <p className="text-xs text-gray-600 dark:text-gray-400">Reports</p>
             </div>
             <div>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
                 {client.totalFindings}
                 {client.findingsBySeverity.critical > 0 && (
                   <span className="ml-1 text-xs text-red-600">({client.findingsBySeverity.critical})</span>
                 )}
-              </p>
+              </h3>
               <p className="text-xs text-gray-600 dark:text-gray-400">Findings</p>
             </div>
           </div>
 
           {/* Card Actions */}
-          <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex gap-2">
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 flex gap-1.5">
             <button
               onClick={() => onView(client)}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
             >
               <Eye className="w-4 h-4" />
               View
             </button>
             <button
               onClick={() => onEdit(client)}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
             >
               <Edit className="w-4 h-4" />
               Edit
@@ -886,33 +896,42 @@ interface TableViewProps {
   onDuplicate: (client: Client) => void
   onArchive: (client: Client) => void
   onCopyLink: (client: Client) => void
+  onSort: (key: string) => void
+  sortConfig: { key: string; direction: 'asc' | 'desc' } | null
 }
 
-function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, onCopyLink }: TableViewProps) {
+function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, onCopyLink, onSort, sortConfig }: TableViewProps) {
+  const SortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortConfig?.key !== columnKey) return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+    return sortConfig.direction === 'asc'
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600" />
+  }
+
+  const renderHeader = (label: string, key: string, align: 'left' | 'right' = 'left') => (
+    <th
+      className={`px-6 py-3 text-${align} text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none`}
+      onClick={() => onSort(key)}
+    >
+      <div className={`flex items-center ${align === 'right' ? 'justify-end' : ''}`}>
+        {label}
+        <SortIcon columnKey={key} />
+      </div>
+    </th>
+  )
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Client
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Contact
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Projects
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Reports
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Findings
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Last Activity
-              </th>
+              {renderHeader('Client', 'name')}
+              {renderHeader('Contact', 'primaryContact')}
+              {renderHeader('Projects', 'projectsCount')}
+              {renderHeader('Reports', 'reportsCount')}
+              {renderHeader('Findings', 'totalFindings')}
+              {renderHeader('Last Activity', 'lastActivityDate')}
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Actions
               </th>
@@ -1148,7 +1167,7 @@ function ListView({ clients }: ListViewProps) {
 
                 {/* Severity Breakdown */}
                 {client.findingsBySeverity && (
-                  <div className="flex gap-1 ml-2 pl-2 border-l border-gray-200 dark:border-gray-700">
+                  <div className="p-4 grid grid-cols-3 gap-3 border-b border-gray-200 dark:border-gray-700">
                     {client.findingsBySeverity.critical > 0 && (
                       <Badge variant="destructive" className="text-xs px-1.5 py-0 font-bold">
                         {client.findingsBySeverity.critical} Critical

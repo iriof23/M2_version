@@ -8,6 +8,7 @@ import Clients from './pages/Clients'
 import Projects from './pages/Projects'
 import Findings from './pages/Findings'
 import ReportBuilder from './pages/ReportBuilder'
+import ReportEditor from './pages/ReportEditor'
 import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
@@ -62,6 +63,7 @@ function App() {
                     <Route path="projects" element={<Projects />} />
                     <Route path="findings" element={<Findings />} />
                     <Route path="reports" element={<ReportBuilder />} />
+                    <Route path="reports/:projectId" element={<ReportEditor />} />
                     <Route path="settings" element={<Settings />} />
                 </Route>
 
