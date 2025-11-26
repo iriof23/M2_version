@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Search, FileText, Image, Globe, Trash2, Upload, X } from 'lucide-react'
+import { Plus, Search, FileText, X, Trash2, Shield, Upload } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { vulnerabilityDatabase, type Vulnerability } from '@/data/vulnerabilities'
-import RichTextEditor from '@/components/RichTextEditor'
+import { Editor } from '@/components/editor/Editor'
+import { EditFindingModal } from './EditFindingModal'
+import { StatCard } from './StatCard'
 import { useParams } from 'react-router-dom'
 
 interface ProjectFinding {
@@ -21,6 +23,7 @@ interface ProjectFinding {
     status: 'Open' | 'In Progress' | 'Fixed' | 'Accepted Risk'
     description: string
     recommendations: string
+    evidence?: string
     affectedAssets: Array<{ url: string; description: string; instanceCount: number }>
     screenshots: Array<{ id: string; url: string; caption: string }>
 }
@@ -37,11 +40,7 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
     const [showAddModal, setShowAddModal] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
-    const [activeEditorTab, setActiveEditorTab] = useState<'details' | 'assets' | 'screenshots'>('details')
-    const [newAssetUrl, setNewAssetUrl] = useState('')
-    const [isDragging, setIsDragging] = useState(false)
     const [selectedVulns, setSelectedVulns] = useState<Vulnerability[]>([])
-    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Load findings from localStorage on mount
     useEffect(() => {
@@ -63,7 +62,15 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
     useEffect(() => {
         if (projectId && findings.length > 0) {
             const storageKey = `findings_${projectId}`
-            localStorage.setItem(storageKey, JSON.stringify(findings))
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(findings))
+            } catch (e) {
+                console.error('Failed to save findings to localStorage:', e)
+                // If quota exceeded, notify user
+                if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+                    alert('Storage limit reached! Unable to save images. Please delete some findings or use smaller images.')
+                }
+            }
         }
     }, [findings, projectId])
 
@@ -83,7 +90,6 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
         }
         const updatedFindings = [...findings, newFinding]
         setFindings(updatedFindings)
-        setSelectedFinding(newFinding)
         setShowAddModal(false)
         onUpdate()
     }
@@ -105,11 +111,6 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
 
         const updatedFindings = [...findings, ...newFindings]
         setFindings(updatedFindings)
-
-        // Select the first newly added finding
-        if (newFindings.length > 0) {
-            setSelectedFinding(newFindings[0])
-        }
 
         // Reset modal state
         setShowAddModal(false)
@@ -178,86 +179,7 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
         onUpdate()
     }
 
-    // Add affected asset
-    const handleAddAsset = () => {
-        if (!selectedFinding || !newAssetUrl.trim()) return
 
-        handleUpdateFinding({
-            ...selectedFinding,
-            affectedAssets: [...selectedFinding.affectedAssets, {
-                url: newAssetUrl.trim(),
-                description: '',
-                instanceCount: 1
-            }]
-        })
-        setNewAssetUrl('')
-    }
-
-    // Screenshot upload
-    const processFile = (file: File) => {
-        if (!selectedFinding) return
-
-        if (file.size > 5 * 1024 * 1024) {
-            alert('File size too large. Max 5MB.')
-            return
-        }
-
-        const reader = new FileReader()
-        reader.onload = (e) => {
-            const result = e.target?.result as string
-            const newScreenshot = {
-                id: `screen-${Date.now()}`,
-                url: result,
-                caption: ''
-            }
-            handleUpdateFinding({
-                ...selectedFinding,
-                screenshots: [...selectedFinding.screenshots, newScreenshot]
-            })
-        }
-        reader.readAsDataURL(file)
-    }
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            processFile(e.target.files[0])
-        }
-    }
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            processFile(e.dataTransfer.files[0])
-        }
-    }
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }
-
-    const handleDragLeave = () => {
-        setIsDragging(false)
-    }
-
-    const removeScreenshot = (id: string) => {
-        if (!selectedFinding) return
-        handleUpdateFinding({
-            ...selectedFinding,
-            screenshots: selectedFinding.screenshots.filter(s => s.id !== id)
-        })
-    }
-
-    const updateCaption = (id: string, caption: string) => {
-        if (!selectedFinding) return
-        handleUpdateFinding({
-            ...selectedFinding,
-            screenshots: selectedFinding.screenshots.map(s =>
-                s.id === id ? { ...s, caption } : s
-            )
-        })
-    }
 
     // Group findings by severity
     const groupedFindings = {
@@ -283,65 +205,136 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
         }
     }
 
+    // Calculate severity counts
+    const severityCounts = {
+        Critical: findings.filter(f => f.severity === 'Critical').length,
+        High: findings.filter(f => f.severity === 'High').length,
+        Medium: findings.filter(f => f.severity === 'Medium').length,
+        Low: findings.filter(f => f.severity === 'Low').length,
+        Informational: findings.filter(f => f.severity === 'Informational').length
+    }
+
     return (
-        <div className="flex gap-4 h-[calc(100vh-300px)]">
-            {/* Left Panel - Findings List */}
-            <div className="w-1/3 space-y-3">
-                <div className="flex items-center gap-2">
-                    <Button onClick={() => setShowAddModal(true)} size="sm" className="flex-1">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Finding
-                    </Button>
+        <>
+            <div className="space-y-6">
+                {/* 1. Severity Summary (Top Row) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        icon={<div className="w-2 h-2 rounded-full bg-red-500" />}
+                        label="Critical Findings"
+                        value={severityCounts.Critical}
+                        variant="destructive"
+                    />
+                    <StatCard
+                        icon={<div className="w-2 h-2 rounded-full bg-orange-500" />}
+                        label="High Risk"
+                        value={severityCounts.High}
+                        variant="warning"
+                    />
+                    <StatCard
+                        icon={<div className="w-2 h-2 rounded-full bg-yellow-500" />}
+                        label="Medium Risk"
+                        value={severityCounts.Medium}
+                        variant="default" // Using default but we might want a yellow variant later
+                    />
+                    <StatCard
+                        icon={<div className="w-2 h-2 rounded-full bg-blue-500" />}
+                        label="Low Risk"
+                        value={severityCounts.Low}
+                        variant="success" // Using success for Low/Info usually
+                    />
                 </div>
 
-                <ScrollArea className="h-full">
-                    <div className="space-y-3 pr-2">
+                {/* 2. Action Toolbar (Middle Row) */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Input
+                            placeholder="Search findings..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-200 placeholder:text-zinc-600 focus:ring-primary/20"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Import Scan
+                        </Button>
+                        <Button onClick={() => setShowAddModal(true)} size="sm" className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white border-none">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Finding
+                        </Button>
+                    </div>
+                </div>
+
+                {/* 3. Findings List or Premium Empty State */}
+                <ScrollArea className="h-[calc(100vh-400px)] min-h-[400px]">
+                    <div className="space-y-3 pr-2 pb-20">
                         {findings.length === 0 ? (
-                            <Card>
-                                <CardContent className="p-8 text-center">
-                                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                                        No Findings Yet
+                            <div className="h-96 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/50 flex flex-col items-center justify-center relative overflow-hidden">
+                                {/* Subtle Background Pattern */}
+                                <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+                                    }}
+                                />
+
+                                <div className="relative z-10 flex flex-col items-center text-center p-6">
+                                    <div className="w-16 h-16 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-center mb-6 shadow-xl">
+                                        <Shield className="w-8 h-8 text-zinc-600" />
+                                    </div>
+                                    <h3 className="text-lg font-medium text-zinc-200 mb-2">
+                                        No findings added yet
                                     </h3>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                                        Click "Add Finding" to add vulnerabilities from the library
+                                    <p className="text-sm text-zinc-500 max-w-md mb-8">
+                                        Start by adding vulnerabilities from the library or import a scanner file to populate your report.
                                     </p>
-                                </CardContent>
-                            </Card>
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <button
+                                            onClick={() => setShowAddModal(true)}
+                                            className="text-emerald-500 hover:text-emerald-400 font-medium hover:underline transition-all"
+                                        >
+                                            Browse Library
+                                        </button>
+                                        <span className="text-zinc-700">•</span>
+                                        <button className="text-zinc-400 hover:text-zinc-300 transition-colors">
+                                            Create Custom
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         ) : (
                             <>
                                 {Object.entries(groupedFindings).map(([severity, items]) => (
                                     items.length > 0 && (
                                         <div key={severity}>
-                                            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
-                                                {severity} ({items.length})
+                                            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 first:mt-0">
+                                                {severity} <span className="text-zinc-600">({items.length})</span>
                                             </h3>
-                                            <div className="space-y-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {items.map((finding) => (
                                                     <Card
                                                         key={finding.id}
                                                         className={cn(
-                                                            'cursor-pointer transition-all hover:shadow-md relative',
+                                                            'cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-black/40 relative group border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/80',
                                                             selectedFinding?.id === finding.id
-                                                                ? 'border-2 border-primary shadow-md bg-primary/5'
-                                                                : 'hover:border-primary/50'
+                                                                ? 'border-emerald-500/50 shadow-md bg-zinc-900 ring-1 ring-emerald-500/20'
+                                                                : 'hover:border-zinc-700'
                                                         )}
                                                         onClick={() => setSelectedFinding(finding)}
                                                     >
-                                                        {selectedFinding?.id === finding.id && (
-                                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg" />
-                                                        )}
-                                                        <CardContent className="p-3">
-                                                            <div className="flex items-start justify-between gap-2">
+                                                        <CardContent className="p-5">
+                                                            <div className="flex items-start justify-between gap-3">
                                                                 <div className="flex-1 min-w-0">
-                                                                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2">
+                                                                    <h4 className="text-sm font-semibold text-zinc-200 line-clamp-2 group-hover:text-emerald-400 transition-colors leading-snug">
                                                                         {finding.title}
                                                                     </h4>
-                                                                    <div className="flex items-center gap-2 mt-2">
-                                                                        <Badge className={cn('text-[10px] px-1.5 py-0', getSeverityColor(finding.severity))}>
+                                                                    <div className="flex items-center gap-2 mt-4">
+                                                                        <Badge className={cn('text-[10px] px-2 py-0.5 font-medium border', getSeverityColor(finding.severity))}>
                                                                             {finding.severity}
                                                                         </Badge>
-                                                                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                                                                        <span className="text-xs text-zinc-500 font-medium">
                                                                             {finding.status}
                                                                         </span>
                                                                     </div>
@@ -360,375 +353,14 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
                 </ScrollArea>
             </div>
 
-            {/* Right Panel - Finding Editor */}
-            <div className="flex-1">
-                {selectedFinding ? (
-                    <Card className="h-full">
-                        <CardContent className="p-4 h-full flex flex-col">
-                            {/* Active Finding Header */}
-                            <div className="mb-4 pb-3 border-b-2 border-primary/20 bg-primary/5 -m-4 p-4 rounded-t-lg">
-                                <div className="flex items-center gap-2">
-                                    <FileText className="w-5 h-5 text-primary" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Currently Editing</p>
-                                        <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                                            {selectedFinding.title}
-                                        </h3>
-                                    </div>
-                                    <Badge className={cn('text-[10px] px-2 py-1', getSeverityColor(selectedFinding.severity))}>
-                                        {selectedFinding.severity}
-                                    </Badge>
-                                </div>
-                            </div>
-
-                            {/* Editor Tabs */}
-                            <div className="flex items-center gap-1 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                <button
-                                    onClick={() => setActiveEditorTab('details')}
-                                    className={cn(
-                                        'px-3 py-1.5 text-sm font-medium rounded transition-colors',
-                                        activeEditorTab === 'details'
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    )}
-                                >
-                                    <FileText className="w-4 h-4 inline mr-1" />
-                                    Finding Details
-                                </button>
-                                <button
-                                    onClick={() => setActiveEditorTab('assets')}
-                                    className={cn(
-                                        'px-3 py-1.5 text-sm font-medium rounded transition-colors',
-                                        activeEditorTab === 'assets'
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    )}
-                                >
-                                    <Globe className="w-4 h-4 inline mr-1" />
-                                    Affected Assets
-                                </button>
-                                <button
-                                    onClick={() => setActiveEditorTab('screenshots')}
-                                    className={cn(
-                                        'px-3 py-1.5 text-sm font-medium rounded transition-colors',
-                                        activeEditorTab === 'screenshots'
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    )}
-                                >
-                                    <Image className="w-4 h-4 inline mr-1" />
-                                    Screenshots
-                                </button>
-                            </div>
-
-                            {/* Editor Content */}
-                            <ScrollArea className="flex-1">
-                                {activeEditorTab === 'details' && (
-                                    <div className="space-y-4 pr-2">
-                                        {/* Title */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                Title *
-                                            </label>
-                                            <Input
-                                                value={selectedFinding.title}
-                                                onChange={(e) => handleUpdateFinding({ ...selectedFinding, title: e.target.value })}
-                                                className="text-sm"
-                                            />
-                                        </div>
-
-                                        {/* Severity */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                Severity *
-                                            </label>
-                                            <div className="flex gap-2">
-                                                {(['Critical', 'High', 'Medium', 'Low', 'Informational'] as const).map((sev) => (
-                                                    <button
-                                                        key={sev}
-                                                        onClick={() => handleUpdateFinding({ ...selectedFinding, severity: sev })}
-                                                        className={cn(
-                                                            'px-3 py-1.5 text-xs font-medium rounded transition-all border',
-                                                            selectedFinding.severity === sev
-                                                                ? getSeverityColor(sev)
-                                                                : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400'
-                                                        )}
-                                                    >
-                                                        {sev}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Status */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                Status
-                                            </label>
-                                            <select
-                                                value={selectedFinding.status}
-                                                onChange={(e) => handleUpdateFinding({ ...selectedFinding, status: e.target.value as any })}
-                                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                            >
-                                                <option value="Open">Open</option>
-                                                <option value="In Progress">In Progress</option>
-                                                <option value="Fixed">Fixed</option>
-                                                <option value="Accepted Risk">Accepted Risk</option>
-                                            </select>
-                                        </div>
-
-                                        {/* CVSS Vector */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                CVSS Vector
-                                            </label>
-                                            <Input
-                                                value={selectedFinding.cvssVector || ''}
-                                                onChange={(e) => handleUpdateFinding({ ...selectedFinding, cvssVector: e.target.value })}
-                                                className="text-xs font-mono"
-                                                placeholder="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-                                            />
-                                        </div>
-
-                                        {/* Description */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                Description *
-                                            </label>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                                Describe how you found this vulnerability, exploitation steps, and impact.
-                                            </p>
-                                            <RichTextEditor
-                                                content={selectedFinding.description}
-                                                onChange={(content) => handleUpdateFinding({ ...selectedFinding, description: content })}
-                                                placeholder="Describe the vulnerability, how you found it, and the exploitation steps..."
-                                            />
-                                        </div>
-
-                                        {/* Recommendations */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                Recommendations *
-                                            </label>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                                Provide specific remediation steps for this application.
-                                            </p>
-                                            <RichTextEditor
-                                                content={selectedFinding.recommendations}
-                                                onChange={(content) => handleUpdateFinding({ ...selectedFinding, recommendations: content })}
-                                                placeholder="Provide specific remediation steps..."
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {activeEditorTab === 'assets' && (
-                                    <div className="space-y-4 pr-2">
-                                        <div>
-                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                                                Affected Assets
-                                            </h3>
-                                            <div className="flex gap-2 mb-4">
-                                                <Input
-                                                    value={newAssetUrl}
-                                                    onChange={(e) => setNewAssetUrl(e.target.value)}
-                                                    placeholder="Add domain, IP range, or URL (e.g., 192.168.1.0/24)"
-                                                    className="flex-1"
-                                                    onKeyPress={(e) => e.key === 'Enter' && handleAddAsset()}
-                                                />
-                                                <Button
-                                                    onClick={handleAddAsset}
-                                                    disabled={!newAssetUrl.trim()}
-                                                >
-                                                    Add
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        {selectedFinding.affectedAssets.length === 0 ? (
-                                            <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm italic">
-                                                No scope items added yet
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {selectedFinding.affectedAssets.map((asset, index) => (
-                                                    <Card key={index}>
-                                                        <CardContent className="p-3">
-                                                            <div className="flex items-start gap-2">
-                                                                <Globe className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                                                                <div className="flex-1 space-y-2">
-                                                                    <p className="text-sm font-mono text-gray-900 dark:text-white break-all">
-                                                                        {asset.url}
-                                                                    </p>
-                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                        <div>
-                                                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                                                                Description
-                                                                            </label>
-                                                                            <Input
-                                                                                value={asset.description}
-                                                                                onChange={(e) => {
-                                                                                    const updated = [...selectedFinding.affectedAssets]
-                                                                                    updated[index].description = e.target.value
-                                                                                    handleUpdateFinding({ ...selectedFinding, affectedAssets: updated })
-                                                                                }}
-                                                                                placeholder="Optional"
-                                                                                className="text-xs h-8"
-                                                                            />
-                                                                        </div>
-                                                                        <div>
-                                                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                                                                Instances
-                                                                            </label>
-                                                                            <Input
-                                                                                type="number"
-                                                                                min="1"
-                                                                                value={asset.instanceCount}
-                                                                                onChange={(e) => {
-                                                                                    const updated = [...selectedFinding.affectedAssets]
-                                                                                    updated[index].instanceCount = parseInt(e.target.value) || 1
-                                                                                    handleUpdateFinding({ ...selectedFinding, affectedAssets: updated })
-                                                                                }}
-                                                                                className="text-xs h-8"
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        handleUpdateFinding({
-                                                                            ...selectedFinding,
-                                                                            affectedAssets: selectedFinding.affectedAssets.filter((_, i) => i !== index)
-                                                                        })
-                                                                    }}
-                                                                    className="text-red-500 hover:text-red-700 flex-shrink-0"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        </CardContent>
-                                                    </Card>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {activeEditorTab === 'screenshots' && (
-                                    <div className="space-y-4 pr-2">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                    Screenshots & Evidence
-                                                </h3>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                >
-                                                    <Plus className="w-4 h-4 mr-1" />
-                                                    Upload Screenshot
-                                                </Button>
-                                                <input
-                                                    type="file"
-                                                    ref={fileInputRef}
-                                                    className="hidden"
-                                                    accept="image/png, image/jpeg, image/gif"
-                                                    onChange={handleFileSelect}
-                                                />
-                                            </div>
-
-                                            {/* Upload Area */}
-                                            {selectedFinding.screenshots.length === 0 && (
-                                                <div
-                                                    className={cn(
-                                                        "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
-                                                        isDragging
-                                                            ? "border-primary bg-primary/5"
-                                                            : "border-gray-300 dark:border-gray-700 hover:border-primary/50"
-                                                    )}
-                                                    onDrop={handleDrop}
-                                                    onDragOver={handleDragOver}
-                                                    onDragLeave={handleDragLeave}
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                >
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full">
-                                                            <Upload className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                                                        </div>
-                                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                                            Click to upload or drag and drop
-                                                        </p>
-                                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                            PNG, JPG, GIF up to 5MB
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Screenshots Grid */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {selectedFinding.screenshots.map((screenshot) => (
-                                                    <Card key={screenshot.id} className="overflow-hidden group">
-                                                        <div className="relative aspect-video bg-gray-100 dark:bg-gray-800">
-                                                            <img
-                                                                src={screenshot.url}
-                                                                alt="Evidence"
-                                                                className="w-full h-full object-contain"
-                                                            />
-                                                            <button
-                                                                onClick={() => removeScreenshot(screenshot.id)}
-                                                                className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            >
-                                                                <X className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                        <CardContent className="p-3">
-                                                            <Input
-                                                                value={screenshot.caption}
-                                                                onChange={(e) => updateCaption(screenshot.id, e.target.value)}
-                                                                placeholder="Add a caption..."
-                                                                className="text-xs"
-                                                            />
-                                                        </CardContent>
-                                                    </Card>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </ScrollArea>
-
-                            {/* Action Buttons - Only Delete, Save is at top */}
-                            <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowDeleteDialog(true)}
-                                    className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete Finding
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <Card className="h-full">
-                        <CardContent className="p-8 text-center flex items-center justify-center h-full">
-                            <div>
-                                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                                    Select a Finding
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Choose a finding from the list to view and edit details
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+            {/* Edit Finding Modal */}
+            <EditFindingModal
+                finding={selectedFinding}
+                isOpen={!!selectedFinding}
+                onClose={() => setSelectedFinding(null)}
+                onUpdate={handleUpdateFinding}
+                onDelete={() => setShowDeleteDialog(true)}
+            />
 
             {/* Add Finding Modal - Bulk Selector */}
             <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
@@ -927,7 +559,8 @@ export default function FindingsTabContent({ onUpdate }: Omit<FindingsTabContent
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+
+        </>
     )
 }
 

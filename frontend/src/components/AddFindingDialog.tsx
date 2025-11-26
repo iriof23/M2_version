@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Editor } from '@/components/editor/Editor'
 import {
     Select,
     SelectContent,
@@ -32,6 +33,7 @@ export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFind
         category: 'Web',
         description: '',
         remediation: '',
+        evidence: '',
         owasp_reference: ''
     })
 
@@ -44,6 +46,7 @@ export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFind
                 category: 'Web',
                 description: '',
                 remediation: '',
+                evidence: '',
                 owasp_reference: ''
             })
         }
@@ -135,25 +138,29 @@ export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFind
 
                     <div className="space-y-2">
                         <Label htmlFor="description">Description</Label>
-                        <Textarea
-                            id="description"
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        <Editor
+                            content={formData.description}
+                            onChange={(html) => setFormData({ ...formData, description: html })}
                             placeholder="Detailed description of the vulnerability..."
-                            className="h-32"
-                            required
+                            className="min-h-[150px]"
                         />
                     </div>
 
+                    {/* Proof of Concept & Evidence */}
+                    <Label htmlFor="evidence">Proof of Concept & Evidence</Label>
+                    <Editor
+                        content={formData.evidence}
+                        onChange={(html) => setFormData({ ...formData, evidence: html })}
+                        placeholder="Provide proof of concept, screenshots, code snippets..."
+                        className="min-h-[400px]"
+                    />
                     <div className="space-y-2">
                         <Label htmlFor="remediation">Remediation</Label>
-                        <Textarea
-                            id="remediation"
-                            value={formData.remediation}
-                            onChange={(e) => setFormData({ ...formData, remediation: e.target.value })}
+                        <Editor
+                            content={formData.remediation}
+                            onChange={(html) => setFormData({ ...formData, remediation: html })}
                             placeholder="Steps to fix or mitigate the issue..."
-                            className="h-32"
-                            required
+                            className="min-h-[150px]"
                         />
                     </div>
 

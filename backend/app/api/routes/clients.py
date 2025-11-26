@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 from prisma import Prisma
 
 from app.api.routes.auth import get_current_user
-from app.main import db
+from app.db import db
 
 
 router = APIRouter()

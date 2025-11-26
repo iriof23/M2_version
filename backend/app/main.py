@@ -5,14 +5,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from prisma import Prisma
 
 from app.core.config import settings
+from app.db import db
 from app.api.routes import auth, clients, projects, findings, reports, templates, uploads
-
-
-# Database client
-db = Prisma()
 
 
 @asynccontextmanager
@@ -52,6 +51,12 @@ app.include_router(findings.router, prefix="/api/findings", tags=["Findings"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
+
+# Mount static files for uploads
+uploads_dir = Path(settings.UPLOAD_DIR)
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+
 
 
 @app.get("/")

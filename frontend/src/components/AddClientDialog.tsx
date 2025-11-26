@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -164,11 +164,11 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, editingClie
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                        <Building2 className="h-6 w-6 text-primary" />
-                        {editingClient ? 'Edit Client' : 'Add New Client'}
+                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        {editingClient ? 'Edit Client' : 'Add Client'}
                     </DialogTitle>
                     <DialogDescription>
                         Create a new client organization to start tracking pentesting projects
@@ -178,21 +178,21 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, editingClie
                 {/* Progress Indicator */}
                 <div className="flex items-center justify-between mb-6">
                     {[1, 2, 3].map((s) => (
-                        <div key={s} className="flex items-center flex-1">
-                            <div className="flex flex-col items-center flex-1">
+                        <React.Fragment key={s}>
+                            <div className="flex flex-col items-center">
                                 <div
                                     className={cn(
-                                        "w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all",
+                                        "w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all",
                                         step >= s
-                                            ? "bg-blue-600 text-white"
+                                            ? "bg-primary text-white"
                                             : "bg-gray-200 dark:bg-gray-700 text-gray-500"
                                     )}
                                 >
                                     {step > s ? <CheckCircle2 className="h-5 w-5" /> : s}
                                 </div>
                                 <span className={cn(
-                                    "text-xs mt-2 font-medium",
-                                    step >= s ? "text-blue-600" : "text-gray-500"
+                                    "text-xs mt-2 font-medium whitespace-nowrap",
+                                    step >= s ? "text-primary" : "text-gray-500"
                                 )}>
                                     {s === 1 && "Basic Info"}
                                     {s === 2 && "Contact"}
@@ -201,11 +201,11 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, editingClie
                             </div>
                             {s < totalSteps && (
                                 <div className={cn(
-                                    "h-1 flex-1 mx-2 rounded transition-all",
-                                    step > s ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700"
+                                    "h-1 flex-1 mx-4 rounded transition-all",
+                                    step > s ? "bg-primary" : "bg-gray-200 dark:bg-gray-700"
                                 )} />
                             )}
-                        </div>
+                        </React.Fragment>
                     ))}
                 </div>
 

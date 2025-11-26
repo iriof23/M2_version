@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.api.routes.auth import get_current_user
-from app.main import db
+from app.db import db
 
 
 router = APIRouter()

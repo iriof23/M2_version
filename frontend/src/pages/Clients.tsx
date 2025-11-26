@@ -10,31 +10,24 @@ import {
   Search,
   Filter,
   Download,
-  Building2,
-  Mail,
-  Phone,
   MoreVertical,
   Edit,
   Trash2,
   Eye,
   FolderOpen,
-  Clock,
-  User,
   ExternalLink,
-  Pencil,
-  StickyNote,
   Archive,
-  X,
   Copy,
+  X,
   ArrowUpDown,
   ArrowUp,
   ArrowDown
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { StatCard, statCardColors } from '@/components/StatCard'
+import { StatCard } from '@/components/StatCard'
+import { ClientListItem } from '@/components/ClientListItem'
 import { FilterDialog, FilterConfig, ActiveFilters } from '@/components/FilterDialog'
 import {
   DropdownMenu,
@@ -57,7 +50,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Skeleton } from '@/components/ui/skeleton'
 import { AddClientDialog } from '@/components/AddClientDialog'
 import ClientDetailModal from '@/components/ClientDetailModal'
-import { cn } from '@/lib/utils'
+import { ClientCard } from '@/components/ClientCard'
 
 // Client interface
 interface Client {
@@ -85,6 +78,7 @@ interface Client {
   }
   createdAt: Date
   updatedAt: Date
+  hasPortalAccess?: boolean
 }
 
 // Mock data for demonstration
@@ -113,7 +107,8 @@ const mockClients: Client[] = [
       low: 2
     },
     createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-03-20')
+    updatedAt: new Date('2024-03-20'),
+    hasPortalAccess: true
   },
   {
     id: '2',
@@ -165,7 +160,8 @@ const mockClients: Client[] = [
       low: 1
     },
     createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-03-21')
+    updatedAt: new Date('2024-03-21'),
+    hasPortalAccess: true
   },
   {
     id: '4',
@@ -224,31 +220,47 @@ const mockClients: Client[] = [
 type ViewMode = 'card' | 'table' | 'list'
 
 export default function Clients() {
-  const [viewMode, setViewMode] = useState<ViewMode>('card')
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('atomik_client_view_mode')
+    return (saved === 'card' || saved === 'table' || saved === 'list') ? saved : 'card'
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [appliedFilters, setAppliedFilters] = useState<ActiveFilters>({})
-  const [clients, setClients] = useState(mockClients)
+  const [clients, setClients] = useState<Client[]>(() => {
+    const saved = localStorage.getItem('clients')
+    if (saved) {
+      try {
+        return JSON.parse(saved).map((c: any) => ({
+          ...c,
+          lastActivityDate: new Date(c.lastActivityDate),
+          createdAt: new Date(c.createdAt),
+          updatedAt: new Date(c.updatedAt)
+        }))
+      } catch (e) {
+        console.error('Failed to parse clients', e)
+        return mockClients
+      }
+    }
+    return mockClients
+  })
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [viewingClient, setViewingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
 
-  // Load saved view mode from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('clientsViewMode')
-    if (saved && (saved === 'card' || saved === 'table' || saved === 'list')) {
-      setViewMode(saved)
-    }
-  }, [])
-
   // Save view mode to localStorage
   useEffect(() => {
-    localStorage.setItem('clientsViewMode', viewMode)
+    localStorage.setItem('atomik_client_view_mode', viewMode)
   }, [viewMode])
+
+  // Save clients to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('clients', JSON.stringify(clients))
+  }, [clients])
 
   // Filter management functions
   const removeFilter = (id: string) => {
@@ -272,14 +284,14 @@ export default function Clients() {
   const handleClientAdded = (newClient: any) => {
     if (editingClient) {
       // Update existing client
-      setClients(clients.map(c => c.id === editingClient.id ? { ...c, ...newClient } : c))
-      console.log('Client updated:', newClient)
+      const updatedClients = clients.map(c => c.id === editingClient.id ? { ...c, ...newClient } : c)
+      setClients(updatedClients)
+      setEditingClient(null)
     } else {
       // Add new client
-      setClients([...clients, newClient])
-      console.log('New client added:', newClient)
+      const updatedClients = [...clients, newClient]
+      setClients(updatedClients)
     }
-    setEditingClient(null)
   }
 
   // Client action handlers
@@ -451,7 +463,7 @@ export default function Clients() {
           value={stats.totalClients}
           trend="+12%"
           trendUp={true}
-          {...statCardColors.blue}
+          variant="default"
         />
         <StatCard
           icon={<FolderOpen className="w-6 h-6" />}
@@ -459,7 +471,7 @@ export default function Clients() {
           value={stats.activeProjects}
           trend="+8%"
           trendUp={true}
-          {...statCardColors.green}
+          variant="success"
         />
         <StatCard
           icon={<FileText className="w-6 h-6" />}
@@ -467,7 +479,7 @@ export default function Clients() {
           value={stats.pendingReports}
           trend="-5%"
           trendUp={false}
-          {...statCardColors.yellow}
+          variant="warning"
         />
         <StatCard
           icon={<AlertTriangle className="w-6 h-6" />}
@@ -475,7 +487,7 @@ export default function Clients() {
           value={stats.openFindings}
           badge={stats.criticalFindings}
           badgeLabel="Critical"
-          {...statCardColors.red}
+          variant="destructive"
         />
       </div>
 
@@ -773,115 +785,16 @@ function CardView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, o
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {clients.map((client) => (
-        <div
+        <ClientCard
           key={client.id}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow overflow-hidden group"
-        >
-          {/* Card Header */}
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-3xl">{client.logoUrl}</div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{client.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{client.primaryContact}</p>
-                </div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onView(client)}>
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Details
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onEdit(client)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Client
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onDuplicate(client)}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Duplicate
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onArchive(client)}>
-                    <Archive className="w-4 h-4 mr-2" />
-                    Archive
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onCopyLink(client)}>
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Copy Link
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onDelete(client)} className="text-red-600 dark:text-red-400">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Client
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* Card Body */}
-          <div className="p-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-              <Mail className="w-4 h-4" />
-              <span className="truncate">{client.email}</span>
-            </div>
-            {client.phone && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-                <Phone className="w-4 h-4" />
-                <span>{client.phone}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-              <Building2 className="w-4 h-4" />
-              <span className="truncate">{client.industry} • {client.companySize}</span>
-            </div>
-          </div>
-
-          {/* Card Stats */}
-          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{client.projectsCount}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Projects</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{client.reportsCount}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Reports</p>
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
-                {client.totalFindings}
-                {client.findingsBySeverity.critical > 0 && (
-                  <span className="ml-1 text-xs text-red-600">({client.findingsBySeverity.critical})</span>
-                )}
-              </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Findings</p>
-            </div>
-          </div>
-
-          {/* Card Actions */}
-          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 flex gap-1.5">
-            <button
-              onClick={() => onView(client)}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-            >
-              <Eye className="w-4 h-4" />
-              View
-            </button>
-            <button
-              onClick={() => onEdit(client)}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-            >
-              <Edit className="w-4 h-4" />
-              Edit
-            </button>
-          </div>
-        </div>
+          client={client}
+          onView={onView}
+          onEdit={onEdit}
+          onDuplicate={onDuplicate}
+          onArchive={onArchive}
+          onCopyLink={onCopyLink}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   )
@@ -1036,217 +949,18 @@ interface ListViewProps {
   onCopyLink: (client: Client) => void
 }
 
-function ListView({ clients }: ListViewProps) {
+function ListView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, onCopyLink }: ListViewProps) {
   return (
     <div className="space-y-3">
       {clients.map((client) => (
-        <div
+        <ClientListItem
           key={client.id}
-          className="flex items-start gap-4 p-4 border rounded-lg hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-          onClick={() => {
-            // Navigate to client detail
-            console.log('Navigate to client:', client.id)
-          }}
-        >
-          {/* Avatar/Logo */}
-          <Avatar className="h-12 w-12 ring-2 ring-border">
-            <AvatarImage src={client.logoUrl} alt={client.name} />
-            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold text-lg">
-              {client.name.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-
-          {/* Main Content */}
-          <div className="flex-1 min-w-0 space-y-2">
-            {/* LINE 1: Name + Badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-lg truncate hover:text-primary transition-colors text-gray-900 dark:text-white">
-                {client.name}
-              </h3>
-
-              {/* Status Badge with color coding */}
-              <Badge
-                className={cn(
-                  "text-xs font-medium",
-                  client.status === 'Active' && "bg-green-500 hover:bg-green-600",
-                  client.status === 'Inactive' && "bg-yellow-500 hover:bg-yellow-600 text-black",
-                  client.status === 'Prospect' && "bg-blue-500 hover:bg-blue-600",
-                  client.status === 'Archived' && "bg-gray-500 hover:bg-gray-600"
-                )}
-              >
-                {client.status === 'Active' && '🟢 '}
-                {client.status === 'Inactive' && '🟡 '}
-                {client.status === 'Prospect' && '🔵 '}
-                {client.status === 'Archived' && '⚫ '}
-                {client.status}
-              </Badge>
-
-              {/* Risk Badge with color coding */}
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-xs font-medium border-2",
-                  client.riskLevel === 'High' && "border-red-500 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-400",
-                  client.riskLevel === 'Medium' && "border-yellow-500 text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400",
-                  client.riskLevel === 'Low' && "border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400"
-                )}
-              >
-                {client.riskLevel === 'High' && '🔴 '}
-                {client.riskLevel === 'Medium' && '🟡 '}
-                {client.riskLevel === 'Low' && '🟢 '}
-                {client.riskLevel} Risk
-              </Badge>
-
-              {/* Industry & Company Size */}
-              <span className="text-sm text-muted-foreground flex items-center gap-1">
-                <Building2 className="h-3.5 w-3.5" />
-                {client.industry} • {client.companySize}
-              </span>
-            </div>
-
-            {/* LINE 2: Contact + Activity */}
-            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                <span className="font-medium text-foreground">{client.primaryContact}</span>
-              </div>
-              <span>•</span>
-              <a
-                href={`mailto:${client.email}`}
-                className="hover:text-primary hover:underline flex items-center gap-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Mail className="h-3.5 w-3.5" />
-                {client.email}
-              </a>
-              <span>•</span>
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                <span>Last activity: {client.lastActivity}</span>
-              </div>
-            </div>
-
-            {/* LINE 3: Tags */}
-            {client.tags && client.tags.length > 0 && (
-              <div className="flex gap-1.5 flex-wrap">
-                {client.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className="text-xs px-2 py-0.5 bg-secondary/50 hover:bg-secondary transition-colors"
-                  >
-                    #{tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {/* LINE 4: Stats with Severity Breakdown */}
-            <div className="flex items-center gap-6 text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
-              {/* Projects */}
-              <div className="flex items-center gap-1.5">
-                <FolderOpen className="h-4 w-4 text-blue-600" />
-                <span className="font-semibold text-foreground">{client.projectsCount}</span>
-                <span className="text-muted-foreground">Projects</span>
-              </div>
-
-              {/* Reports */}
-              <div className="flex items-center gap-1.5">
-                <FileText className="h-4 w-4 text-green-600" />
-                <span className="font-semibold text-foreground">{client.reportsCount}</span>
-                <span className="text-muted-foreground">Reports</span>
-              </div>
-
-              {/* Findings with Severity Pills */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                  <span className="font-semibold text-foreground">{client.totalFindings}</span>
-                  <span className="text-muted-foreground">Findings</span>
-                </div>
-
-                {/* Severity Breakdown */}
-                {client.findingsBySeverity && (
-                  <div className="p-4 grid grid-cols-3 gap-3 border-b border-gray-200 dark:border-gray-700">
-                    {client.findingsBySeverity.critical > 0 && (
-                      <Badge variant="destructive" className="text-xs px-1.5 py-0 font-bold">
-                        {client.findingsBySeverity.critical} Critical
-                      </Badge>
-                    )}
-                    {client.findingsBySeverity.high > 0 && (
-                      <Badge className="text-xs px-1.5 py-0 bg-orange-500 hover:bg-orange-600">
-                        {client.findingsBySeverity.high} High
-                      </Badge>
-                    )}
-                    {client.findingsBySeverity.medium > 0 && (
-                      <Badge className="text-xs px-1.5 py-0 bg-yellow-500 hover:bg-yellow-600 text-black">
-                        {client.findingsBySeverity.medium} Med
-                      </Badge>
-                    )}
-                    {client.findingsBySeverity.low > 0 && (
-                      <Badge className="text-xs px-1.5 py-0 bg-green-500 hover:bg-green-600">
-                        {client.findingsBySeverity.low} Low
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons - Show on hover */}
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                console.log('View client:', client.id)
-              }}
-            >
-              <ExternalLink className="h-3.5 w-3.5 mr-1" />
-              View
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit Client
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Project
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Email
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                  <StickyNote className="h-4 w-4 mr-2" />
-                  Add Note
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                  <Archive className="h-4 w-4 mr-2" />
-                  Archive
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Client
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+          client={client}
+          onView={onView}
+          onEdit={onEdit}
+          onArchive={onArchive}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   )

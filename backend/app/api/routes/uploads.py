@@ -11,7 +11,7 @@ import aiofiles
 
 from app.api.routes.auth import get_current_user
 from app.core.config import settings
-from app.main import db
+from app.db import db
 
 
 router = APIRouter()
@@ -41,6 +41,42 @@ def validate_file(filename: str, filesize: int) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File size exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE / 1024 / 1024}MB"
         )
+
+
+@router.post("/screenshot")
+async def upload_screenshot(
+    file: UploadFile = File(...)
+):
+    """Upload a screenshot and return permanent URL (public endpoint for demo)"""
+    # Read file content to get size
+    content = await file.read()
+    filesize = len(content)
+    
+    # Validate file
+    validate_file(file.filename, filesize)
+    
+    # Validate it's an image
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image"
+        )
+    
+    # Generate unique filename
+    ext = get_file_extension(file.filename)
+    unique_filename = f"{uuid.uuid4()}.{ext}"
+    filepath = os.path.join(settings.UPLOAD_DIR, unique_filename)
+    
+    # Save file
+    async with aiofiles.open(filepath, 'wb') as f:
+        await f.write(content)
+    
+    # Return URL (relative to the uploads directory)
+    return {
+        "url": f"/uploads/{unique_filename}",
+        "filename": unique_filename
+    }
+
 
 
 @router.post("/evidence/{finding_id}")

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ChevronLeft, FileText, BookOpen, Settings, Eye, Download, Save } from 'lucide-react'
+import { ChevronLeft, FileText, BookOpen, Settings, Eye, Download, Save, ChevronDown, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import FindingsTabContent from '@/components/FindingsTabContent'
+import { Editor } from '@/components/editor/Editor'
 
 // Mock project data - will be replaced with actual data
 const mockProject = {
@@ -232,6 +233,7 @@ function FindingsTab({ onUpdate }: { onUpdate: () => void }) {
 }
 
 // Narrative Tab Component
+// Narrative Tab Component
 function NarrativeTab({ onUpdate }: { onUpdate: () => void }) {
     const [narrative, setNarrative] = useState({
         executiveSummary: '',
@@ -241,57 +243,74 @@ function NarrativeTab({ onUpdate }: { onUpdate: () => void }) {
 
     return (
         <div className="space-y-4">
-            <Card>
-                <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                        Executive Summary
-                    </h3>
-                    <textarea
-                        value={narrative.executiveSummary}
-                        onChange={(e) => {
-                            setNarrative({ ...narrative, executiveSummary: e.target.value })
-                            onUpdate()
-                        }}
-                        placeholder="Provide a high-level overview of the assessment..."
-                        className="w-full h-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </CardContent>
-            </Card>
+            <CollapsibleSection title="Executive Summary" defaultOpen={true}>
+                <Editor
+                    content={narrative.executiveSummary}
+                    onChange={(html) => {
+                        setNarrative({ ...narrative, executiveSummary: html })
+                        onUpdate()
+                    }}
+                    placeholder="Provide a high-level overview of the assessment..."
+                />
+            </CollapsibleSection>
 
-            <Card>
-                <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                        Methodology
-                    </h3>
-                    <textarea
-                        value={narrative.methodology}
-                        onChange={(e) => {
-                            setNarrative({ ...narrative, methodology: e.target.value })
-                            onUpdate()
-                        }}
-                        placeholder="Describe the testing methodology used..."
-                        className="w-full h-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </CardContent>
-            </Card>
+            <CollapsibleSection title="Methodology" defaultOpen={true}>
+                <Editor
+                    content={narrative.methodology}
+                    onChange={(html) => {
+                        setNarrative({ ...narrative, methodology: html })
+                        onUpdate()
+                    }}
+                    placeholder="Describe the testing methodology used..."
+                />
+            </CollapsibleSection>
 
-            <Card>
-                <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                        Scope
-                    </h3>
-                    <textarea
-                        value={narrative.scope}
-                        onChange={(e) => {
-                            setNarrative({ ...narrative, scope: e.target.value })
-                            onUpdate()
-                        }}
-                        placeholder="Define the scope of the assessment..."
-                        className="w-full h-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </CardContent>
-            </Card>
+            <CollapsibleSection title="Scope" defaultOpen={true}>
+                <Editor
+                    content={narrative.scope}
+                    onChange={(html) => {
+                        setNarrative({ ...narrative, scope: html })
+                        onUpdate()
+                    }}
+                    placeholder="Define the scope of the assessment..."
+                />
+            </CollapsibleSection>
         </div>
+    )
+}
+
+function CollapsibleSection({
+    title,
+    children,
+    defaultOpen = false
+}: {
+    title: string
+    children: React.ReactNode
+    defaultOpen?: boolean
+}) {
+    const [isOpen, setIsOpen] = useState(defaultOpen)
+
+    return (
+        <Card>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors rounded-t-lg"
+            >
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    {title}
+                </h2>
+                {isOpen ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+            </button>
+            {isOpen && (
+                <CardContent className="p-4 pt-0">
+                    {children}
+                </CardContent>
+            )}
+        </Card>
     )
 }
 

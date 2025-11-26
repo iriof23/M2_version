@@ -17,7 +17,7 @@ from app.core.security import (
     decode_token,
     validate_license_key_format,
 )
-from app.main import db
+from app.db import db
 
 
 router = APIRouter()

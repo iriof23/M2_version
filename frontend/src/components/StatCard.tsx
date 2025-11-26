@@ -10,9 +10,7 @@ interface StatCardProps {
     trendUp?: boolean
     badge?: number
     badgeLabel?: string
-    gradientFrom: string
-    gradientTo: string
-    iconColor: string
+    variant?: 'default' | 'warning' | 'destructive' | 'success'
 }
 
 export function StatCard({
@@ -23,44 +21,67 @@ export function StatCard({
     trendUp,
     badge,
     badgeLabel,
-    gradientFrom,
-    gradientTo,
-    iconColor
+    variant = 'default'
 }: StatCardProps) {
+
+    const getVariantStyles = () => {
+        switch (variant) {
+            case 'destructive':
+                return {
+                    iconColor: 'text-red-500',
+                    trendColor: 'text-red-500',
+                    trendBg: 'bg-red-500/10',
+                }
+            case 'warning':
+                return {
+                    iconColor: 'text-orange-500',
+                    trendColor: 'text-orange-500',
+                    trendBg: 'bg-orange-500/10',
+                }
+            case 'success':
+                return {
+                    iconColor: 'text-emerald-500',
+                    trendColor: 'text-emerald-500',
+                    trendBg: 'bg-emerald-500/10',
+                }
+            case 'default':
+            default:
+                return {
+                    iconColor: 'text-white',
+                    trendColor: 'text-zinc-400',
+                    trendBg: 'bg-zinc-800',
+                }
+        }
+    }
+
+    const styles = getVariantStyles()
+
     return (
         <Card
             className={cn(
-                "relative overflow-hidden bg-[#1a1d21] border-gray-800 text-white",
-                "transition-all duration-200 hover:scale-[1.02] hover:shadow-xl",
-                "border-l-4"
+                "relative overflow-hidden",
+                "bg-zinc-900/50",
+                "border-zinc-800",
+                "transition-all duration-200 hover:border-zinc-700",
+                "border"
             )}
-            style={{
-                borderLeftColor: gradientFrom
-            }}
         >
             <CardContent className="p-6">
                 {/* Top Section: Icon and Trend/Badge */}
                 <div className="flex items-start justify-between mb-4">
-                    {/* Icon with gradient background */}
-                    <div
-                        className="p-3 rounded-xl"
-                        style={{
-                            background: `linear-gradient(135deg, ${gradientFrom}20, ${gradientTo}20)`
-                        }}
-                    >
-                        <div style={{ color: iconColor }}>
-                            {icon}
-                        </div>
+                    {/* Icon */}
+                    <div className={cn("p-2 rounded-lg bg-zinc-900 border border-zinc-800", styles.iconColor)}>
+                        {icon}
                     </div>
 
                     {/* Trend or Badge */}
                     {trend && (
                         <div
                             className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
+                                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-transparent",
                                 trendUp
-                                    ? "bg-emerald-500/20 text-emerald-400"
-                                    : "bg-red-500/20 text-red-400"
+                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                    : "bg-red-500/10 text-red-500 border-red-500/20"
                             )}
                         >
                             {trendUp ? (
@@ -73,7 +94,7 @@ export function StatCard({
                     )}
 
                     {badge !== undefined && badge > 0 && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-400 animate-pulse">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20 animate-pulse">
                             {badge} {badgeLabel}
                         </div>
                     )}
@@ -81,51 +102,14 @@ export function StatCard({
 
                 {/* Bottom Section: Value and Label */}
                 <div>
-                    <h3 className="text-4xl font-bold mb-1 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                    <h3 className="text-3xl font-bold tracking-tight text-white mb-1">
                         {value}
                     </h3>
-                    <p className="text-sm font-medium text-gray-400">
+                    <p className="text-sm font-medium text-zinc-500">
                         {label}
                     </p>
                 </div>
-
-                {/* Subtle gradient overlay in background */}
-                <div
-                    className="absolute bottom-0 right-0 w-32 h-32 opacity-5 rounded-full blur-2xl"
-                    style={{
-                        background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`
-                    }}
-                />
             </CardContent>
         </Card>
     )
-}
-
-// Predefined color schemes for consistency
-export const statCardColors = {
-    blue: {
-        gradientFrom: '#3b82f6',
-        gradientTo: '#06b6d4',
-        iconColor: '#60a5fa'
-    },
-    green: {
-        gradientFrom: '#10b981',
-        gradientTo: '#14b8a6',
-        iconColor: '#34d399'
-    },
-    purple: {
-        gradientFrom: '#a855f7',
-        gradientTo: '#ec4899',
-        iconColor: '#c084fc'
-    },
-    yellow: {
-        gradientFrom: '#eab308',
-        gradientTo: '#f97316',
-        iconColor: '#fbbf24'
-    },
-    red: {
-        gradientFrom: '#ef4444',
-        gradientTo: '#f43f5e',
-        iconColor: '#f87171'
-    }
 }

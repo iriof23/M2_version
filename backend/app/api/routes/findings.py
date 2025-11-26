@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 
 from app.api.routes.auth import get_current_user
-from app.main import db
+from app.db import db
 
 
 router = APIRouter()
@@ -64,6 +64,7 @@ class FindingResponse(BaseModel):
     status: str
     project_id: str
     project_name: str
+    client_name: Optional[str]  # Added for generating unique Finding IDs
     created_by_id: str
     created_by_name: str
     template_id: Optional[str]
@@ -104,7 +105,11 @@ async def list_findings(
         skip=skip,
         take=limit,
         include={
-            "project": True,
+            "project": {
+                "include": {
+                    "client": True  # Include client for generating unique Finding IDs
+                }
+            },
             "createdBy": True,
             "_count": {
                 "select": {
@@ -130,6 +135,7 @@ async def list_findings(
             status=finding.status,
             project_id=finding.projectId,
             project_name=finding.project.name,
+            client_name=finding.project.client.name if finding.project.client else None,
             created_by_id=finding.createdById,
             created_by_name=finding.createdBy.name,
             template_id=finding.templateId,
@@ -182,7 +188,11 @@ async def create_finding(
             "status": "OPEN",
         },
         include={
-            "project": True,
+            "project": {
+                "include": {
+                    "client": True  # Include client for generating unique Finding IDs
+                }
+            },
             "createdBy": True,
             "_count": {
                 "select": {
@@ -206,6 +216,7 @@ async def create_finding(
         status=finding.status,
         project_id=finding.projectId,
         project_name=finding.project.name,
+        client_name=finding.project.client.name if finding.project.client else None,
         created_by_id=finding.createdById,
         created_by_name=finding.createdBy.name,
         template_id=finding.templateId,
@@ -261,6 +272,7 @@ async def get_finding(
         status=finding.status,
         project_id=finding.projectId,
         project_name=finding.project.name,
+        client_name=finding.project.client.name if finding.project.client else None,
         created_by_id=finding.createdById,
         created_by_name=finding.createdBy.name,
         template_id=finding.templateId,
@@ -322,7 +334,11 @@ async def update_finding(
         where={"id": finding_id},
         data=update_data,
         include={
-            "project": True,
+            "project": {
+                "include": {
+                    "client": True  # Include client for generating unique Finding IDs
+                }
+            },
             "createdBy": True,
             "_count": {
                 "select": {
@@ -346,6 +362,7 @@ async def update_finding(
         status=updated_finding.status,
         project_id=updated_finding.projectId,
         project_name=updated_finding.project.name,
+        client_name=updated_finding.project.client.name if updated_finding.project.client else None,
         created_by_id=updated_finding.createdById,
         created_by_name=updated_finding.createdBy.name,
         template_id=updated_finding.templateId,

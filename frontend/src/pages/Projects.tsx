@@ -40,7 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AddProjectDialog } from '@/components/AddProjectDialog'
 import ProjectDetailModal from '@/components/ProjectDetailModal'
 import { cn } from '@/lib/utils'
-import { StatCard, statCardColors } from '@/components/StatCard'
+import { StatCard } from '@/components/StatCard'
 import { FilterDialog, FilterConfig, ActiveFilters } from '@/components/FilterDialog'
 import {
     AlertDialog,
@@ -612,7 +612,7 @@ export default function Projects() {
                     value={stats.totalProjects}
                     trend="+15%"
                     trendUp={true}
-                    {...statCardColors.blue}
+                    variant="default"
                 />
                 <StatCard
                     icon={<PlayCircle className="w-6 h-6" />}
@@ -620,7 +620,7 @@ export default function Projects() {
                     value={stats.activeProjects}
                     trend="+8%"
                     trendUp={true}
-                    {...statCardColors.green}
+                    variant="default"
                 />
                 <StatCard
                     icon={<CheckCircle2 className="w-6 h-6" />}
@@ -628,7 +628,7 @@ export default function Projects() {
                     value={stats.completedProjects}
                     trend="+12%"
                     trendUp={true}
-                    {...statCardColors.purple}
+                    variant="default"
                 />
                 <StatCard
                     icon={<AlertCircle className="w-6 h-6" />}
@@ -636,7 +636,7 @@ export default function Projects() {
                     value={stats.criticalFindings}
                     badge={stats.overdueProjects}
                     badgeLabel="Overdue"
-                    {...statCardColors.red}
+                    variant="destructive"
                 />
             </div>
 
@@ -991,17 +991,14 @@ function ProjectCard({
             <CardContent className="p-4">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start gap-2 flex-1 min-w-0">
-                        <div className="text-2xl">{project.clientLogoUrl}</div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                                {project.name}
-                            </h3>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                                <Building2 className="w-3 h-3" />
-                                {project.clientName}
-                            </p>
-                        </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                            {project.name}
+                        </h3>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                            <Building2 className="w-3 h-3" />
+                            {project.clientName}
+                        </p>
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1062,27 +1059,6 @@ function ProjectCard({
                 <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mb-3">
                     <Calendar className="w-4 h-4" />
                     <span>{project.startDate.toLocaleDateString()} - {project.endDate.toLocaleDateString()}</span>
-                </div>
-
-                {/* Team Members */}
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="flex -space-x-2">
-                        {project.teamMembers.slice(0, 3).map((member, _idx) => (
-                            <Avatar key={member.id} className="h-6 w-6 border-2 border-white dark:border-gray-800">
-                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                                    {member.name.split(' ').map(n => n[0]).join('')}
-                                </AvatarFallback>
-                            </Avatar>
-                        ))}
-                        {project.teamMembers.length > 3 && (
-                            <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-[10px] font-medium">
-                                +{project.teamMembers.length - 3}
-                            </div>
-                        )}
-                    </div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                        Lead: {project.leadTester}
-                    </span>
                 </div>
 
                 {/* Findings Summary - Use dynamic count */}
