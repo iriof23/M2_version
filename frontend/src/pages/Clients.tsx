@@ -51,6 +51,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AddClientDialog } from '@/components/AddClientDialog'
 import ClientDetailModal from '@/components/ClientDetailModal'
 import { ClientCard } from '@/components/ClientCard'
+import { useToast } from '@/components/ui/use-toast'
 
 // Client interface
 interface Client {
@@ -222,11 +223,12 @@ type ViewMode = 'card' | 'table' | 'list'
 export default function Clients() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem('atomik_client_view_mode')
-    return (saved === 'card' || saved === 'table' || saved === 'list') ? saved : 'card'
+    return (saved === 'card' || saved === 'table' || saved === 'list') ? saved : 'table'
   })
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
+  const { toast } = useToast()
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [appliedFilters, setAppliedFilters] = useState<ActiveFilters>({})
   const [clients, setClients] = useState<Client[]>(() => {
@@ -341,6 +343,99 @@ export default function Clients() {
   // Calculate stats
   const openFilterDialog = () => {
     setFilterDialogOpen(true)
+  }
+
+  const handleExportClients = () => {
+    // Get the clients to export (use filtered clients if filters are active, otherwise all)
+    const clientsToExport = filteredClients.length > 0 ? filteredClients : clients
+    
+    if (clientsToExport.length === 0) {
+      toast({
+        title: "No Clients to Export",
+        description: "There are no clients to export.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Define CSV headers
+    const headers = [
+      'Client Name',
+      'Status',
+      'Risk Level',
+      'Industry',
+      'Company Size',
+      'Primary Contact',
+      'Email',
+      'Phone',
+      'Tags',
+      'Projects Count',
+      'Reports Count',
+      'Total Findings',
+      'Critical Findings',
+      'High Findings',
+      'Medium Findings',
+      'Low Findings',
+      'Has Portal Access',
+      'Last Activity',
+      'Created At',
+      'Updated At'
+    ]
+
+    // Convert clients to CSV rows
+    const csvRows = [
+      headers.join(','),
+      ...clientsToExport.map(client => {
+        const tags = client.tags?.join('; ') || ''
+        
+        // Escape commas and quotes in CSV values
+        const escapeCSV = (value: any) => {
+          if (value === null || value === undefined) return ''
+          const str = String(value)
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`
+          }
+          return str
+        }
+
+        return [
+          escapeCSV(client.name),
+          escapeCSV(client.status),
+          escapeCSV(client.riskLevel),
+          escapeCSV(client.industry),
+          escapeCSV(client.companySize),
+          escapeCSV(client.primaryContact),
+          escapeCSV(client.email),
+          escapeCSV(client.phone || ''),
+          escapeCSV(tags),
+          escapeCSV(client.projectsCount),
+          escapeCSV(client.reportsCount),
+          escapeCSV(client.totalFindings),
+          escapeCSV(client.findingsBySeverity.critical),
+          escapeCSV(client.findingsBySeverity.high),
+          escapeCSV(client.findingsBySeverity.medium),
+          escapeCSV(client.findingsBySeverity.low),
+          escapeCSV(client.hasPortalAccess ? 'Yes' : 'No'),
+          escapeCSV(client.lastActivity),
+          escapeCSV(client.createdAt.toLocaleDateString()),
+          escapeCSV(client.updatedAt.toLocaleDateString())
+        ].join(',')
+      })
+    ]
+
+    // Create CSV content
+    const csvContent = csvRows.join('\n')
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `clients_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const clientFilterConfig: FilterConfig = {
@@ -528,7 +623,7 @@ export default function Clients() {
               )}
             </Button>
 
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportClients}>
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
@@ -536,20 +631,6 @@ export default function Clients() {
             {/* View Mode Switcher with Tooltips */}
             <TooltipProvider>
               <div className="flex items-center gap-1 border rounded-md p-1 border-border bg-card">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={viewMode === 'card' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('card')}
-                      className="h-8 w-8 p-0"
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Card View</TooltipContent>
-                </Tooltip>
-
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -562,6 +643,20 @@ export default function Clients() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Table View</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={viewMode === 'card' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('card')}
+                      className="h-8 w-8 p-0"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Card View</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
