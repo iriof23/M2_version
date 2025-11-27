@@ -1193,6 +1193,17 @@ function ProjectCard({
     )
 }
 
+const getStatusDotColor = (status: string) => {
+    switch (status) {
+        case 'In Progress': return 'bg-emerald-500'
+        case 'Completed': return 'bg-blue-500'
+        case 'Planning': return 'bg-purple-500'
+        case 'On Hold': return 'bg-orange-500'
+        case 'Cancelled': return 'bg-zinc-500'
+        default: return 'bg-zinc-500'
+    }
+}
+
 // Table View Component
 function TableView({
     projects,
@@ -1249,93 +1260,99 @@ function TableView({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                        {projects.map((project) => (
-                            <tr key={project.id} className="hover:bg-muted/50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="font-medium text-foreground">{project.name}</div>
-                                    <div className="text-xs text-muted-foreground">{project.type}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">{project.clientLogoUrl}</span>
-                                        <span className="text-sm text-foreground">{project.clientName}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <Badge className={cn('text-xs font-medium', getStatusColor(project.status))}>
-                                        {project.status}
-                                    </Badge>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <Badge variant="outline" className={cn('text-xs font-medium border-2', getPriorityColor(project.priority))}>
-                                        {project.priority}
-                                    </Badge>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap align-middle">
-                                    <div className="w-24">
-                                        <div className="flex items-center justify-between text-xs mb-1">
-                                            <span className="text-muted-foreground">{project.progress}%</span>
+                        {projects.map((project) => {
+                            const daysLeft = differenceInDays(project.endDate, new Date())
+                            const isDueSoon = daysLeft >= 0 && daysLeft <= 5 && project.status !== 'Completed'
+
+                            return (
+                                <tr key={project.id} className="hover:bg-muted/50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="font-medium text-foreground">{project.name}</div>
+                                        <div className="text-xs text-muted-foreground">{project.type}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-zinc-500"><Building2 className="w-4 h-4" /></span>
+                                            <span className="text-sm text-zinc-300">{project.clientName}</span>
                                         </div>
-                                        <div className="w-full bg-muted rounded-full h-1.5">
-                                            <div
-                                                className="bg-primary h-1.5 rounded-full"
-                                                style={{ width: `${project.progress}% ` }}
-                                            />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn("w-2 h-2 rounded-full", getStatusDotColor(project.status))} />
+                                            <span className="text-sm text-zinc-300">{project.status}</span>
                                         </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                                    <div className="flex flex-col">
-                                        <span>{project.startDate.toLocaleDateString()}</span>
-                                        <span className="text-xs">to {project.endDate.toLocaleDateString()}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex -space-x-2">
-                                        {project.teamMembers.slice(0, 3).map((member) => (
-                                            <Avatar key={member.id} className="h-6 w-6 border-2 border-background">
-                                                <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white text-[10px]">
-                                                    {member.name.split(' ').map(n => n[0]).join('')}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        ))}
-                                        {project.teamMembers.length > 3 && (
-                                            <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-foreground">
-                                                +{project.teamMembers.length - 3}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <Badge variant="outline" className={cn('text-xs font-medium border-2', getPriorityColor(project.priority))}>
+                                            {project.priority}
+                                        </Badge>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">
+                                        <div className="w-24">
+                                            <div className="flex items-center justify-between text-xs mb-1">
+                                                <span className="text-muted-foreground">{project.progress}%</span>
                                             </div>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors">
-                                                <MoreVertical className="w-4 h-4" />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => onViewDetails(project)}>
-                                                <Eye className="h-4 w-4 mr-2" />
-                                                View Details
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onEditProject(project)}>
-                                                <Edit className="h-4 w-4 mr-2" />
-                                                Edit Project
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onGenerateReport(project)}>
-                                                <FileText className="h-4 w-4 mr-2" />
-                                                Generate Report
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-red-600" onClick={() => onDeleteProject(project)}>
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                Delete Project
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </td>
-                            </tr>
-                        ))}
+                                            <div className="w-full bg-zinc-800 rounded-full h-1.5">
+                                                <div
+                                                    className="bg-emerald-500 h-1.5 rounded-full"
+                                                    style={{ width: `${project.progress}% ` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                        <div className="flex flex-col">
+                                            <span>{format(project.startDate, 'MMM d')} - {format(project.endDate, 'MMM d')}</span>
+                                            {isDueSoon && <span className="text-orange-500 text-xs font-medium mt-0.5">Due in {daysLeft} days</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex -space-x-2">
+                                            {project.teamMembers.slice(0, 3).map((member) => (
+                                                <Avatar key={member.id} className="h-6 w-6 border-2 border-background">
+                                                    <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white text-[10px]">
+                                                        {member.name.split(' ').map(n => n[0]).join('')}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            ))}
+                                            {project.teamMembers.length > 3 && (
+                                                <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-foreground">
+                                                    +{project.teamMembers.length - 3}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors">
+                                                    <MoreVertical className="w-4 h-4" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => onViewDetails(project)}>
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    View Details
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => onEditProject(project)}>
+                                                    <Edit className="h-4 w-4 mr-2" />
+                                                    Edit Project
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => onGenerateReport(project)}>
+                                                    <FileText className="h-4 w-4 mr-2" />
+                                                    Generate Report
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-red-600" onClick={() => onDeleteProject(project)}>
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete Project
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </td>
+                                </tr>
+                            )
+                        })}
                     </tbody>
                 </table>
             </div>
