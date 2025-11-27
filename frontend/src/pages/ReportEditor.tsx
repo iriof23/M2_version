@@ -29,15 +29,17 @@ export default function ReportEditor() {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
     const [actualFindingsCount, setActualFindingsCount] = useState(0)
 
-    // Load actual findings count from localStorage
-    useEffect(() => {
+    // Function to calculate findings count from localStorage
+    const calculateFindingsCount = () => {
         if (projectId) {
             const storageKey = `findings_${projectId}`
             const stored = localStorage.getItem(storageKey)
             if (stored) {
                 try {
                     const findings = JSON.parse(stored)
-                    setActualFindingsCount(findings.length)
+                    // Calculate total from all findings (sum of all severities)
+                    const total = findings.length
+                    setActualFindingsCount(total)
                 } catch (e) {
                     setActualFindingsCount(0)
                 }
@@ -45,7 +47,43 @@ export default function ReportEditor() {
                 setActualFindingsCount(0)
             }
         }
+    }
+
+    // Load actual findings count from localStorage
+    useEffect(() => {
+        calculateFindingsCount()
+        
+        // Listen for storage changes to update count when findings are added/removed
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === `findings_${projectId}`) {
+                calculateFindingsCount()
+            }
+        }
+        
+        window.addEventListener('storage', handleStorageChange)
+        
+        // Also check periodically (for same-tab updates)
+        const interval = setInterval(() => {
+            calculateFindingsCount()
+        }, 1000) // Check every second
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange)
+            clearInterval(interval)
+        }
     }, [projectId])
+    
+    // Handler to update findings count when FindingsTabContent updates
+    const handleFindingsUpdate = () => {
+        calculateFindingsCount()
+    }
+    
+    // Recalculate count when switching to findings tab
+    useEffect(() => {
+        if (activeTab === 'findings') {
+            calculateFindingsCount()
+        }
+    }, [activeTab, projectId])
 
     // Report settings state
     const [reportSettings, setReportSettings] = useState({
@@ -188,19 +226,8 @@ export default function ReportEditor() {
                     <FindingsTab
                         onUpdate={() => {
                             setHasUnsavedChanges(true)
-                            // Reload findings count
-                            if (projectId) {
-                                const storageKey = `findings_${projectId}`
-                                const stored = localStorage.getItem(storageKey)
-                                if (stored) {
-                                    try {
-                                        const findings = JSON.parse(stored)
-                                        setActualFindingsCount(findings.length)
-                                    } catch (e) {
-                                        setActualFindingsCount(0)
-                                    }
-                                }
-                            }
+                            // Update findings count
+                            handleFindingsUpdate()
                         }}
                     />
                 )}
