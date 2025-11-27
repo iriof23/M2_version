@@ -621,28 +621,49 @@ export default function Dashboard() {
     }
     
     const handleViewDetails = (project: Project) => {
-        // Open the project detail modal
-        // Need to convert the Dashboard Project to the full Project type expected by modal
-        setViewingProject({
-            ...project,
-            type: 'External', // Default, would come from actual project data
-            complianceFrameworks: [],
-            scope: [],
-            methodology: 'OWASP',
-            teamMembers: [],
-            leadTester: '',
-            findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
-            findingsCount: 0,
-            description: '',
-            lastActivity: '',
-            lastActivityDate: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            startDate: new Date(),
-            endDate: new Date(project.endDate),
-            clientId: '1',
-            clientLogoUrl: '🏢'
-        })
+        // Load full project data from localStorage
+        const storedProjects = JSON.parse(localStorage.getItem('projects') || '[]')
+        const fullProject = storedProjects.find((p: any) => p.id === project.id)
+        
+        if (fullProject) {
+            // Convert date strings back to Date objects
+            setViewingProject({
+                ...fullProject,
+                startDate: new Date(fullProject.startDate),
+                endDate: new Date(fullProject.endDate),
+                lastActivityDate: fullProject.lastActivityDate ? new Date(fullProject.lastActivityDate) : new Date(),
+                createdAt: fullProject.createdAt ? new Date(fullProject.createdAt) : new Date(),
+                updatedAt: fullProject.updatedAt ? new Date(fullProject.updatedAt) : new Date(),
+                // Ensure arrays exist
+                scope: fullProject.scope || [],
+                teamMembers: fullProject.teamMembers || [],
+                complianceFrameworks: fullProject.complianceFrameworks || [],
+                // Ensure findingsBySeverity exists
+                findingsBySeverity: fullProject.findingsBySeverity || { critical: 0, high: 0, medium: 0, low: 0 }
+            })
+        } else {
+            // Fallback to basic project data if not found in localStorage
+            setViewingProject({
+                ...project,
+                type: 'External',
+                complianceFrameworks: [],
+                scope: [],
+                methodology: 'OWASP',
+                teamMembers: [],
+                leadTester: '',
+                findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+                findingsCount: 0,
+                description: '',
+                lastActivity: '',
+                lastActivityDate: new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                startDate: new Date(),
+                endDate: new Date(project.endDate),
+                clientId: '1',
+                clientLogoUrl: '🏢'
+            })
+        }
     }
     
     const handleClientAdded = (client: any) => {
