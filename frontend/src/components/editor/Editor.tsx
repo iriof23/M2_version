@@ -289,11 +289,11 @@ export const Editor = ({
     return (
         <div
             className={cn(
-                'relative w-full rounded-md border bg-transparent transition-colors',
+                'relative w-full rounded-md border bg-transparent transition-all duration-200',
                 showDropZone
                     ? 'min-h-[400px] border-dashed border-2 border-zinc-700 hover:border-zinc-600'
-                    : 'min-h-[400px] h-auto border-zinc-800 focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-700',
-                'p-4',
+                    : 'min-h-[400px] h-auto border-zinc-800/50 focus-within:border-zinc-500 focus-within:ring-1 focus-within:ring-zinc-600',
+                'p-0', // Removed padding to let toolbar sit flush if desired, or manage padding in toolbar/content
                 className
             )}
             onDrop={handleWrapperDrop}
@@ -323,7 +323,9 @@ export const Editor = ({
             />
             {editable && <EditorToolbar editor={editor} />}
             {editable && <EditorBubbleMenu editor={editor} />}
-            <EditorContent editor={editor} />
+            <div className="p-4">
+                <EditorContent editor={editor} />
+            </div>
         </div>
     );
 };

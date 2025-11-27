@@ -198,29 +198,29 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete 
                     {/* Left Column: Metadata (25%) - Scrollable */}
                     <div className="col-span-3 border-r border-zinc-800 bg-zinc-900/30 h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                         <div className="p-6 space-y-6">
-                            {/* Finding ID (Read-Only) */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Finding ID</label>
-                                <Input
-                                    value={findingId}
-                                    readOnly
-                                    className="font-mono text-zinc-400 bg-zinc-900/50 border-zinc-800 cursor-default"
-                                />
-                            </div>
-
-                            {/* Affected Assets Count */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Affected Assets Count</label>
-                                <Input
-                                    type="number"
-                                    value={affectedAssetsCount === 0 ? '' : affectedAssetsCount}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setAffectedAssetsCount(val === '' ? 0 : parseInt(val) || 0);
-                                        setIsDirty(true);  // Enable save button
-                                    }}
-                                    className="bg-zinc-900 border-zinc-800 text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
+                            {/* Finding ID & Assets Count - Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Finding ID</label>
+                                    <Input
+                                        value={findingId}
+                                        readOnly
+                                        className="h-9 font-mono text-xs text-zinc-300 bg-zinc-900/30 border-zinc-800 cursor-default focus:ring-0"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Assets</label>
+                                    <Input
+                                        type="number"
+                                        value={affectedAssetsCount === 0 ? '' : affectedAssetsCount}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setAffectedAssetsCount(val === '' ? 0 : parseInt(val) || 0);
+                                            setIsDirty(true);
+                                        }}
+                                        className="h-9 bg-zinc-900/30 border-zinc-800 text-zinc-300 text-sm focus:ring-1 focus:ring-zinc-600 focus:border-zinc-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                </div>
                             </div>
 
                             {/* Severity & Status */}
@@ -230,10 +230,10 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete 
                                     <select
                                         value={localFinding.severity}
                                         onChange={(e) => handleChange({ severity: e.target.value as any })}
-                                        className="w-full px-3 py-2 text-sm border border-zinc-800 rounded-md bg-zinc-900 text-white focus:ring-2 focus:ring-primary/20 outline-none"
+                                        className="w-full h-9 px-3 py-2 text-sm border border-zinc-800 rounded-md bg-zinc-900/30 text-zinc-300 focus:ring-1 focus:ring-zinc-600 focus:border-zinc-500 outline-none appearance-none"
                                     >
                                         {['Critical', 'High', 'Medium', 'Low', 'Informational'].map(s => (
-                                            <option key={s} value={s}>{s}</option>
+                                            <option key={s} value={s} className="bg-zinc-900">{s}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -242,10 +242,10 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete 
                                     <select
                                         value={localFinding.status}
                                         onChange={(e) => handleChange({ status: e.target.value as any })}
-                                        className="w-full px-3 py-2 text-sm border border-zinc-800 rounded-md bg-zinc-900 text-white focus:ring-2 focus:ring-primary/20 outline-none"
+                                        className="w-full h-9 px-3 py-2 text-sm border border-zinc-800 rounded-md bg-zinc-900/30 text-zinc-300 focus:ring-1 focus:ring-zinc-600 focus:border-zinc-500 outline-none appearance-none"
                                     >
                                         {['Open', 'In Progress', 'Fixed', 'Accepted Risk'].map(s => (
-                                            <option key={s} value={s}>{s}</option>
+                                            <option key={s} value={s} className="bg-zinc-900">{s}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -257,7 +257,7 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete 
                                 <Input
                                     value={localFinding.cvssVector || ''}
                                     onChange={(e) => handleChange({ cvssVector: e.target.value })}
-                                    className="font-mono text-xs bg-zinc-900 border-zinc-800 text-white"
+                                    className="h-9 font-mono text-xs tracking-tight bg-zinc-900/30 border-zinc-800 text-zinc-300 focus:ring-1 focus:ring-zinc-600 focus:border-zinc-500"
                                     placeholder="CVSS:3.1/..."
                                 />
                             </div>
@@ -273,23 +273,23 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete 
                                         value={newAssetUrl}
                                         onChange={(e) => setNewAssetUrl(e.target.value)}
                                         placeholder="Add URL/IP..."
-                                        className="text-xs bg-zinc-900 border-zinc-800 text-white"
+                                        className="h-9 text-sm bg-zinc-900/30 border-zinc-800 text-zinc-300 focus:ring-1 focus:ring-zinc-600 focus:border-zinc-500"
                                         onKeyDown={(e) => e.key === 'Enter' && handleAddAsset()}
                                     />
-                                    <Button size="sm" variant="outline" onClick={handleAddAsset} disabled={!newAssetUrl.trim()} className="border-zinc-800 hover:bg-zinc-800">
+                                    <Button size="sm" variant="outline" onClick={handleAddAsset} disabled={!newAssetUrl.trim()} className="h-9 border-zinc-800 hover:bg-zinc-800 text-zinc-300">
                                         <Plus className="w-4 h-4" />
                                     </Button>
                                 </div>
                                 <div className="space-y-2">
                                     {localFinding.affectedAssets.map((asset, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-2 bg-zinc-900 border border-zinc-800 rounded text-sm group">
+                                        <div key={idx} className="flex items-center justify-between p-2 bg-zinc-900/30 border border-zinc-800 rounded text-sm group">
                                             <div className="flex items-center gap-2 overflow-hidden">
-                                                <Globe className="w-3 h-3 text-zinc-400 flex-shrink-0" />
-                                                <span className="truncate text-zinc-300" title={asset.url}>{asset.url}</span>
+                                                <Globe className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                                                <span className="truncate text-zinc-300 font-mono text-xs" title={asset.url}>{asset.url}</span>
                                             </div>
                                             <button
                                                 onClick={() => removeAsset(idx)}
-                                                className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="text-zinc-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                             >
                                                 <X className="w-3 h-3" />
                                             </button>

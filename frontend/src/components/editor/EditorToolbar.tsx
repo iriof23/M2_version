@@ -48,7 +48,7 @@ export const EditorToolbar = ({ editor }: EditorToolbarProps) => {
     );
 
     return (
-        <div className="flex items-center gap-1 p-2 border-b border-zinc-800 bg-zinc-950/80 sticky top-0 z-20 backdrop-blur-md">
+        <div className="flex items-center gap-1 p-2 border-b border-zinc-800/50 bg-transparent sticky top-0 z-20 backdrop-blur-sm">
             {/* Formatting */}
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
