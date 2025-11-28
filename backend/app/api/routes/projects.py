@@ -47,6 +47,32 @@ class ProjectResponse(BaseModel):
     report_count: int
 
 
+class AvailableMemberResponse(BaseModel):
+    """Response model for available organization members"""
+    id: str
+    email: str
+    firstName: Optional[str]
+    lastName: Optional[str]
+    imageUrl: Optional[str]
+    name: Optional[str]
+
+
+class ProjectMemberAdd(BaseModel):
+    """Request model for adding a project member"""
+    userId: str
+    role: str  # "LEAD", "TESTER", or "VIEWER"
+
+
+class ProjectMemberResponse(BaseModel):
+    """Response model for project member"""
+    id: str
+    userId: str
+    userName: Optional[str]
+    userEmail: str
+    role: str
+    assignedAt: str
+
+
 @router.get("/", response_model=list[ProjectResponse])
 async def list_projects(
     skip: int = 0,
@@ -314,4 +340,217 @@ async def delete_project(
         )
     
     await db.project.delete(where={"id": project_id})
+    return None
+
+
+# ============== Project Team Management Endpoints ==============
+
+@router.get("/available-members", response_model=list[AvailableMemberResponse])
+async def get_available_members(
+    current_user = Depends(get_current_user)
+):
+    """
+    Get all users in the current user's organization who are available to be assigned to projects.
+    
+    This populates the dropdown menu for adding team members.
+    """
+    if not current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User must belong to an organization"
+        )
+    
+    # Fetch all users in the organization
+    users = await db.user.find_many(
+        where={"organizationId": current_user.organizationId},
+        select={
+            "id": True,
+            "email": True,
+            "firstName": True,
+            "lastName": True,
+            "imageUrl": True,
+            "name": True,
+        },
+        order_by={"email": "asc"}
+    )
+    
+    return [
+        AvailableMemberResponse(
+            id=user.id,
+            email=user.email,
+            firstName=user.firstName,
+            lastName=user.lastName,
+            imageUrl=user.imageUrl,
+            name=user.name,
+        )
+        for user in users
+    ]
+
+
+@router.post("/{project_id}/members", response_model=ProjectMemberResponse, status_code=status.HTTP_201_CREATED)
+async def add_project_member(
+    project_id: str,
+    member_data: ProjectMemberAdd,
+    current_user = Depends(get_current_user)
+):
+    """
+    Add a user to a project team with a specific role.
+    
+    Security checks:
+    - Project must belong to user's organization
+    - User being added must belong to user's organization
+    - Prevents duplicate memberships (handled by unique constraint)
+    """
+    if not current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User must belong to an organization"
+        )
+    
+    # Verify project exists and belongs to user's organization
+    project = await db.project.find_unique(
+        where={"id": project_id},
+        include={"client": True}
+    )
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    if project.client.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Project does not belong to your organization"
+        )
+    
+    # Verify user exists and belongs to user's organization
+    user_to_add = await db.user.find_unique(
+        where={"id": member_data.userId}
+    )
+    
+    if not user_to_add:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user_to_add.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: User does not belong to your organization"
+        )
+    
+    # Validate role
+    valid_roles = ["LEAD", "TESTER", "VIEWER"]
+    if member_data.role not in valid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+        )
+    
+    # Check if user is already a member (unique constraint will also prevent this)
+    existing_member = await db.projectmember.find_first(
+        where={
+            "projectId": project_id,
+            "userId": member_data.userId
+        }
+    )
+    
+    if existing_member:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User is already a member of this project"
+        )
+    
+    # Create project member
+    project_member = await db.projectmember.create(
+        data={
+            "projectId": project_id,
+            "userId": member_data.userId,
+            "role": member_data.role,
+        },
+        include={"user": True}
+    )
+    
+    return ProjectMemberResponse(
+        id=project_member.id,
+        userId=project_member.userId,
+        userName=project_member.user.name or f"{project_member.user.firstName or ''} {project_member.user.lastName or ''}".strip(),
+        userEmail=project_member.user.email,
+        role=project_member.role,
+        assignedAt=project_member.assignedAt.isoformat(),
+    )
+
+
+@router.delete("/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_project_member(
+    project_id: str,
+    user_id: str,
+    current_user = Depends(get_current_user)
+):
+    """
+    Remove a user from a project team.
+    
+    Security checks:
+    - Project must belong to user's organization
+    - User being removed must belong to user's organization
+    """
+    if not current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User must belong to an organization"
+        )
+    
+    # Verify project exists and belongs to user's organization
+    project = await db.project.find_unique(
+        where={"id": project_id},
+        include={"client": True}
+    )
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    if project.client.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Project does not belong to your organization"
+        )
+    
+    # Verify user exists and belongs to user's organization
+    user_to_remove = await db.user.find_unique(
+        where={"id": user_id}
+    )
+    
+    if not user_to_remove:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user_to_remove.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: User does not belong to your organization"
+        )
+    
+    # Find and delete the project member
+    project_member = await db.projectmember.find_first(
+        where={
+            "projectId": project_id,
+            "userId": user_id
+        }
+    )
+    
+    if not project_member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not a member of this project"
+        )
+    
+    await db.projectmember.delete(where={"id": project_member.id})
     return None
