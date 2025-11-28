@@ -1,13 +1,25 @@
--- AlterTable
-ALTER TABLE "Organization" ADD COLUMN     "paddleCustomerId" TEXT,
-ADD COLUMN     "subscriptionId" TEXT,
-ADD COLUMN     "subscriptionStatus" TEXT,
-ADD COLUMN     "updateUrl" TEXT,
-ADD COLUMN     "cancelUrl" TEXT,
-ADD COLUMN     "creditBalance" INTEGER NOT NULL DEFAULT 10;
+-- CreateEnum
+CREATE TYPE "SubscriptionStatus" AS ENUM ('active', 'past_due', 'trialing', 'paused', 'canceled');
+
+-- AlterEnum
+-- Rename old Plan values to new ones
+ALTER TYPE "Plan" RENAME VALUE 'FREELANCER' TO 'PRO';
+ALTER TYPE "Plan" RENAME VALUE 'TEAM' TO 'AGENCY';
+-- Remove ENTERPRISE (if it exists, this will be handled by dropping unused values)
+-- Note: If ENTERPRISE is in use, this migration will fail and require manual intervention
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "creditBalance" INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE "Organization" 
+  ADD COLUMN "paddleCustomerId" TEXT,
+  ADD COLUMN "subscriptionId" TEXT,
+  ADD COLUMN "subscriptionStatus" "SubscriptionStatus",
+  ADD COLUMN "updateUrl" TEXT,
+  ADD COLUMN "cancelUrl" TEXT,
+  ADD COLUMN "creditBalance" INTEGER NOT NULL DEFAULT 10;
+
+-- AlterTable
+ALTER TABLE "User" 
+  ADD COLUMN "creditBalance" INTEGER NOT NULL DEFAULT 5;
 
 -- CreateTable
 CREATE TABLE "AiUsageLog" (
