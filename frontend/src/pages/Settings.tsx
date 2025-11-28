@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, User, CreditCard, Settings as SettingsIcon, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import BillingSettings from '@/components/settings/BillingSettings'
 
 export default function Settings() {
     const { theme } = useThemeStore()
@@ -96,21 +97,7 @@ export default function Settings() {
                     />
                 )
             case 'billing':
-                return (
-                    <Card className="w-full bg-zinc-900 border-zinc-800">
-                         <CardHeader>
-                            <CardTitle className="text-white">Billing & Plans</CardTitle>
-                            <CardDescription className="text-zinc-400">Manage your subscription and payment methods</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="p-12 text-center border-2 border-dashed border-zinc-800 rounded-lg">
-                                <CreditCard className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-zinc-300">Billing Portal</h3>
-                                <p className="text-zinc-500 mt-2">Stripe integration coming soon.</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )
+                return <BillingSettings />
             case 'preferences':
                  return (
                     <Card className="w-full bg-zinc-900 border-zinc-800">
