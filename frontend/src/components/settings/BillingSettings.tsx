@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, Zap, CreditCard, Shield, Crown, Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { billingApi } from '@/lib/api'
-import { useUser } from '@clerk/clerk-react'
+import { billingApi, api } from '@/lib/api'
+import { useUser, useAuth } from '@clerk/clerk-react'
 
 interface BillingInfo {
     plan: 'FREE' | 'PRO' | 'AGENCY'
@@ -22,12 +22,21 @@ export default function BillingSettings() {
     const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
     const [fetchingBilling, setFetchingBilling] = useState(true)
     const { user } = useUser()
+    const { getToken } = useAuth()
 
     // Fetch billing info from backend
     useEffect(() => {
         const fetchBillingInfo = async () => {
             try {
                 setFetchingBilling(true)
+                
+                // Get Clerk session token
+                const token = await getToken()
+                if (token) {
+                    // Set token in axios instance
+                    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+                }
+                
                 const data = await billingApi.getBillingInfo()
                 setBillingInfo(data)
             } catch (error) {
@@ -48,7 +57,7 @@ export default function BillingSettings() {
         if (user) {
             fetchBillingInfo()
         }
-    }, [user])
+    }, [user, getToken])
 
     // Current plan data from API
     const currentPlan = billingInfo?.plan || 'FREE'

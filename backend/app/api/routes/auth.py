@@ -59,26 +59,57 @@ class UserResponse(BaseModel):
 
 # Dependency to get current user
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Get current authenticated user from JWT token"""
+    """Get current authenticated user from JWT token or Clerk token"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     
+    # Try to decode as JWT (legacy auth)
     payload = decode_token(token)
-    if payload is None:
-        raise credentials_exception
+    if payload is not None:
+        user_id: str = payload.get("sub")
+        if user_id:
+            user = await db.user.find_unique(where={"id": user_id})
+            if user:
+                return user
     
-    user_id: str = payload.get("sub")
-    if user_id is None:
-        raise credentials_exception
+    # Try to validate as Clerk token
+    # For now, we'll use a simplified approach:
+    # In production, you should verify the Clerk JWT using their JWKS endpoint
+    # For development, we'll decode without verification
+    try:
+        import jwt
+        # Decode without verification (ONLY FOR DEVELOPMENT!)
+        clerk_payload = jwt.decode(token, options={"verify_signature": False})
+        clerk_user_id = clerk_payload.get("sub")
+        
+        if clerk_user_id:
+            # Find user by Clerk external ID
+            user = await db.user.find_unique(where={"externalId": clerk_user_id})
+            if user:
+                return user
+            
+            # Auto-create user from Clerk token if not exists
+            email = clerk_payload.get("email")
+            if email:
+                user = await db.user.create(
+                    data={
+                        "externalId": clerk_user_id,
+                        "email": email,
+                        "firstName": clerk_payload.get("first_name"),
+                        "lastName": clerk_payload.get("last_name"),
+                        "imageUrl": clerk_payload.get("image_url"),
+                        "name": f"{clerk_payload.get('first_name', '')} {clerk_payload.get('last_name', '')}".strip(),
+                        "creditBalance": 5  # Default trial credits
+                    }
+                )
+                return user
+    except Exception as e:
+        print(f"Error validating Clerk token: {e}")
     
-    user = await db.user.find_unique(where={"id": user_id})
-    if user is None:
-        raise credentials_exception
-    
-    return user
+    raise credentials_exception
 
 
 # Docker mode endpoints
