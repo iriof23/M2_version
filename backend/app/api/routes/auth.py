@@ -57,6 +57,29 @@ class UserResponse(BaseModel):
     organization_id: Optional[str] = None
 
 
+class OrganizationInfo(BaseModel):
+    """Organization info for the /me endpoint"""
+    id: str
+    name: str
+    slug: str
+    plan: str
+    creditBalance: int
+    subscriptionStatus: Optional[str] = None
+
+
+class UserWithOrgResponse(BaseModel):
+    """Extended user response with organization details"""
+    id: str
+    email: str
+    name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    imageUrl: Optional[str] = None
+    role: str
+    creditBalance: int
+    organization: Optional[OrganizationInfo] = None
+
+
 # Dependency to get current user
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     """Get current authenticated user from JWT token or Clerk token"""
@@ -359,15 +382,49 @@ async def validate_license(license_key: str, machine_id: str):
     }
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserWithOrgResponse)
 async def get_current_user_info(current_user = Depends(get_current_user)):
-    """Get current user information"""
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        name=current_user.name,
-        role=current_user.role,
-        organization_id=current_user.organizationId,
+    """
+    Get current user information with organization details.
+    
+    Returns user data along with their organization's plan and credit balance.
+    This is used by the frontend to determine feature access.
+    """
+    # Fetch user with organization included
+    user = await db.user.find_unique(
+        where={"id": current_user.id},
+        include={"organization": True}
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Build organization info if user has one
+    org_info = None
+    if user.organization:
+        org = user.organization
+        org_info = OrganizationInfo(
+            id=org.id,
+            name=org.name,
+            slug=org.slug,
+            plan=org.plan,
+            creditBalance=org.creditBalance,
+            subscriptionStatus=org.subscriptionStatus,
+        )
+    
+    return UserWithOrgResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        firstName=user.firstName,
+        lastName=user.lastName,
+        imageUrl=user.imageUrl,
+        role=user.role,
+        creditBalance=user.creditBalance,
+        organization=org_info,
     )
 
 
