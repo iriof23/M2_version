@@ -114,9 +114,22 @@ export default function BillingSettings() {
         }
         
         setLoading(priceId)
-        paddle.Checkout.open({
-            items: [{ priceId, quantity: 1 }]
-        })
+        
+        // Build checkout options with user info
+        const checkoutOptions: any = {
+            items: [{ priceId, quantity: 1 }],
+        }
+        
+        // Add customer email if available
+        if (user?.primaryEmailAddress?.emailAddress) {
+            checkoutOptions.customer = {
+                email: user.primaryEmailAddress.emailAddress
+            }
+        }
+        
+        console.log('Opening Paddle checkout with:', checkoutOptions)
+        
+        paddle.Checkout.open(checkoutOptions)
         // Reset loading state after a delay
         setTimeout(() => setLoading(null), 1000)
     }

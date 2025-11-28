@@ -24,7 +24,7 @@ async def get_billing_info(
     try:
         # Fetch user with organization data
         user = await db.user.find_unique(
-            where={"id": current_user["id"]},
+            where={"id": current_user.id},
             include={
                 "organization": True
             }
@@ -76,7 +76,7 @@ async def get_organization_billing(
     try:
         # Verify user belongs to this organization
         user = await db.user.find_unique(
-            where={"id": current_user["id"]}
+            where={"id": current_user.id}
         )
         
         if user.organizationId != organization_id:

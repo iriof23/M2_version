@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir poetry && \
 COPY . .
 
 # Generate Prisma client
-# RUN prisma generate
+RUN prisma generate
 
 EXPOSE 8000
 
