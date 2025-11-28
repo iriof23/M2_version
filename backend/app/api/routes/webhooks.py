@@ -195,75 +195,78 @@ async def handle_transaction_completed(data: dict):
     """
     print("💳 Processing transaction.completed")
     
-    transaction_id = data.get("id")
-    customer_id = data.get("customer_id")
-    subscription_id = data.get("subscription_id")
-    items = data.get("items", [])
+    # Extract data from payload
     custom_data = data.get("custom_data", {}) or {}
-    
-    # Extract custom data passed during checkout
     org_id = custom_data.get("orgId") or custom_data.get("organization_id")
-    user_id = custom_data.get("userId") or custom_data.get("user_id")
-    purchase_type = custom_data.get("type", "subscription")  # "subscription" or "credits"
     
-    print(f"  Transaction ID: {transaction_id}")
-    print(f"  Customer ID: {customer_id}")
-    print(f"  Subscription ID: {subscription_id}")
+    # Get the Price ID from the first item
+    items = data.get("items", [])
+    price_id = None
+    if items:
+        # Try both possible locations for price_id
+        price_id = items[0].get("price_id") or items[0].get("price", {}).get("id")
+    
+    print(f"  Org ID: {org_id}")
+    print(f"  Price ID: {price_id}")
     print(f"  Custom Data: {custom_data}")
+    print(f"  Subscription ID: {data.get('subscription_id')}")
+    print(f"  Customer ID: {data.get('customer_id')}")
     
-    # Process each item in the transaction
-    for item in items:
-        price = item.get("price", {})
-        price_id = price.get("id")
-        quantity = item.get("quantity", 1)
+    # Validate we have an org ID
+    if not org_id:
+        print("⚠️ No Org ID found in webhook custom_data")
+        print("  Make sure the frontend is passing orgId in customData during checkout")
+        return {"status": "ignored", "reason": "no_org_id"}
+    
+    # Logic A: Handle Plan Upgrade (Subscription)
+    if price_id and price_id in PRICE_TO_PLAN:
+        new_plan = PRICE_TO_PLAN[price_id]
+        print(f"✅ Upgrading Org {org_id} to {new_plan}")
         
-        print(f"  Processing item: {price_id} x {quantity}")
+        try:
+            await db.organization.update(
+                where={"id": org_id},
+                data={
+                    "plan": new_plan,
+                    "subscriptionStatus": "active",
+                    "subscriptionId": data.get("subscription_id"),
+                    "paddleCustomerId": data.get("customer_id"),
+                    "creditBalance": PLAN_CREDITS.get(new_plan, 10),
+                }
+            )
+            print(f"  ✅ Successfully upgraded organization {org_id} to {new_plan}")
+        except Exception as e:
+            print(f"  ❌ Failed to update organization: {e}")
+            raise
+    
+    # Logic B: Handle Credit Top-Up (One-time purchase)
+    elif price_id and price_id in PRICE_TO_CREDITS:
+        amount = PRICE_TO_CREDITS[price_id]
+        print(f"✅ Adding {amount} credits to Org {org_id}")
+        
+        try:
+            # Get current balance first
+            org = await db.organization.find_unique(where={"id": org_id})
+            if org:
+                new_balance = org.creditBalance + amount
+                await db.organization.update(
+                    where={"id": org_id},
+                    data={"creditBalance": new_balance}
+                )
+                print(f"  ✅ Credits added. New balance: {new_balance}")
+            else:
+                print(f"  ❌ Organization {org_id} not found in database")
+        except Exception as e:
+            print(f"  ❌ Failed to add credits: {e}")
+            raise
+    
+    else:
+        print(f"⚠️ Unrecognized Price ID: {price_id}")
         print(f"  Known plan IDs: {list(PRICE_TO_PLAN.keys())}")
         print(f"  Known credit IDs: {list(PRICE_TO_CREDITS.keys())}")
-        
-        # Check if this is a credit pack purchase
-        if price_id in PRICE_TO_CREDITS:
-            credits_to_add = PRICE_TO_CREDITS[price_id] * quantity
-            print(f"  💰 Credit pack purchase: {credits_to_add} credits")
-            
-            # Add credits to organization or user
-            if org_id:
-                await add_credits_to_organization(org_id, credits_to_add)
-            elif user_id:
-                await add_credits_to_user(user_id, credits_to_add)
-            else:
-                # Try to find by customer_id
-                await add_credits_by_customer_id(customer_id, credits_to_add)
-        
-        # Check if this is a subscription purchase
-        elif price_id in PRICE_TO_PLAN:
-            plan = PRICE_TO_PLAN[price_id]
-            print(f"  📋 Subscription purchase: {plan} plan")
-            
-            # Update organization with subscription details
-            if org_id:
-                await activate_subscription(
-                    org_id=org_id,
-                    plan=plan,
-                    subscription_id=subscription_id,
-                    customer_id=customer_id
-                )
-            elif user_id:
-                # For user-level subscriptions (if supported)
-                print(f"  ⚠️ User-level subscription not implemented yet")
-            else:
-                # Try to find org by customer_id
-                await activate_subscription_by_customer_id(
-                    customer_id=customer_id,
-                    plan=plan,
-                    subscription_id=subscription_id
-                )
-        
-        else:
-            # Unknown price ID - log for debugging
-            print(f"  ⚠️ UNKNOWN PRICE ID: {price_id}")
-            print(f"  This price ID is not mapped to a plan or credit pack.")
-            print(f"  Please add it to PRICE_TO_PLAN or PRICE_TO_CREDITS in webhooks.py")
+        return {"status": "ignored", "reason": "unknown_price_id"}
+    
+    return {"status": "success"}
 
 
 async def handle_subscription_created(data: dict):
