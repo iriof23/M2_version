@@ -26,16 +26,20 @@ router = APIRouter()
 # Environment variable for webhook secret
 PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
 
-# Price ID to Plan mapping
+# Price ID to Plan mapping (Paddle Price ID -> Database Plan Enum)
+# Update these IDs to match your Paddle dashboard
 PRICE_TO_PLAN = {
-    "pri_01kb5djzbeyaev2k64nzkayfbx": "PRO",
-    "pri_01kb5dphg35030j7e9crrcqxd8": "AGENCY",
+    "pri_01kb5da0e4hwhrynm8tf1a8atg": "PRO",      # Pro Plan - $49/mo
+    "pri_01kb5djzbeyaev2k64nzkayfbx": "PRO",      # Pro Plan (alternate ID)
+    "pri_01kb5dphg35030j7e9crrcqxd8": "AGENCY",   # Agency Plan - $149/mo
 }
 
 # Price ID to Credit amount mapping (for one-time purchases)
+# Update these IDs to match your Paddle dashboard
 PRICE_TO_CREDITS = {
-    "pri_01kb5dww39pc83mag1x8dtrzyw": 500,   # Starter Pack - $15
-    "pri_01kb5e09hfcpdpzxvxmzg3c179": 2000,  # Pro Pack - $50
+    "pri_01kb5dww39pc83mag1x8dtrzyw": 500,        # Starter Pack - $15
+    "pri_01kb5e09hfcpdpzxvxmzg3c179": 2000,       # Pro Pack - $50
+    "pri_01kb5e09hfcpdpzvxvnmzg3c179": 2000,      # Pro Pack (alternate ID)
 }
 
 # Plan to monthly credits mapping
@@ -214,6 +218,8 @@ async def handle_transaction_completed(data: dict):
         quantity = item.get("quantity", 1)
         
         print(f"  Processing item: {price_id} x {quantity}")
+        print(f"  Known plan IDs: {list(PRICE_TO_PLAN.keys())}")
+        print(f"  Known credit IDs: {list(PRICE_TO_CREDITS.keys())}")
         
         # Check if this is a credit pack purchase
         if price_id in PRICE_TO_CREDITS:
@@ -252,6 +258,12 @@ async def handle_transaction_completed(data: dict):
                     plan=plan,
                     subscription_id=subscription_id
                 )
+        
+        else:
+            # Unknown price ID - log for debugging
+            print(f"  ⚠️ UNKNOWN PRICE ID: {price_id}")
+            print(f"  This price ID is not mapped to a plan or credit pack.")
+            print(f"  Please add it to PRICE_TO_PLAN or PRICE_TO_CREDITS in webhooks.py")
 
 
 async def handle_subscription_created(data: dict):
