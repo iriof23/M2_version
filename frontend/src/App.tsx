@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
-import { useAuthStore, useThemeStore } from './lib/store'
-import Login from './pages/Login'
-import LicenseEntry from './pages/LicenseEntry'
+import { useThemeStore } from './lib/store'
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
+import SignInPage from './pages/SignInPage'
+import SignUpPage from './pages/SignUpPage'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Projects from './pages/Projects'
@@ -13,7 +14,6 @@ import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
 function App() {
-    const { isAuthenticated, deploymentMode } = useAuthStore()
     const initializeTheme = useThemeStore((state) => state.initializeTheme)
 
     // Initialize theme on mount
@@ -25,36 +25,16 @@ function App() {
         <BrowserRouter>
             <Routes>
                 {/* Authentication routes */}
-                <Route
-                    path="/login"
-                    element={
-                        deploymentMode === 'docker' ? (
-                            isAuthenticated ? <Navigate to="/dashboard" /> : <Login />
-                        ) : (
-                            <Navigate to="/license" />
-                        )
-                    }
-                />
-                <Route
-                    path="/license"
-                    element={
-                        deploymentMode === 'desktop' ? (
-                            isAuthenticated ? <Navigate to="/dashboard" /> : <LicenseEntry />
-                        ) : (
-                            <Navigate to="/login" />
-                        )
-                    }
-                />
+                <Route path="/sign-in/*" element={<SignInPage />} />
+                <Route path="/sign-up/*" element={<SignUpPage />} />
 
                 {/* Protected routes */}
                 <Route
                     path="/"
                     element={
-                        isAuthenticated ? (
+                        <SignedIn>
                             <Layout />
-                        ) : (
-                            <Navigate to={deploymentMode === 'docker' ? '/login' : '/license'} />
-                        )
+                        </SignedIn>
                     }
                 >
                     <Route index element={<Navigate to="/dashboard" />} />
@@ -67,8 +47,20 @@ function App() {
                     <Route path="settings" element={<Settings />} />
                 </Route>
 
-                {/* Catch all */}
-                <Route path="*" element={<Navigate to="/" />} />
+                {/* Catch all & Redirect */}
+                <Route 
+                    path="*" 
+                    element={
+                        <>
+                            <SignedIn>
+                                <Navigate to="/dashboard" />
+                            </SignedIn>
+                            <SignedOut>
+                                <RedirectToSignIn />
+                            </SignedOut>
+                        </>
+                    } 
+                />
             </Routes>
         </BrowserRouter>
     )

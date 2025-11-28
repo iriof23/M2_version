@@ -1,15 +1,15 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../lib/store'
+import { useUser, useClerk } from '@clerk/clerk-react'
 import logo from '../assets/logo.png'
 import { Toaster } from '@/components/ui/toaster'
 
 export default function Layout() {
     const navigate = useNavigate()
-    const { user, logout } = useAuthStore()
+    const { user } = useUser()
+    const { signOut } = useClerk()
 
     const handleLogout = () => {
-        logout()
-        navigate('/login')
+        signOut(() => navigate('/sign-in'))
     }
 
     return (
@@ -65,12 +65,19 @@ export default function Layout() {
 
                     <div className="p-3 border-t border-gray-200 dark:border-gray-700">
                         <div className="space-y-2">
-                            <div className="text-center">
-                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={user?.name}>
-                                    {user?.name}
+                            <div className="text-center flex flex-col items-center">
+                                {user?.imageUrl && (
+                                    <img 
+                                        src={user.imageUrl} 
+                                        alt="Profile" 
+                                        className="w-8 h-8 rounded-full mb-2 border border-gray-200 dark:border-gray-600"
+                                    />
+                                )}
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate w-full" title={user?.fullName || ''}>
+                                    {user?.fullName}
                                 </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={user?.email}>
-                                    {user?.email}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate w-full" title={user?.primaryEmailAddress?.emailAddress || ''}>
+                                    {user?.primaryEmailAddress?.emailAddress}
                                 </p>
                             </div>
                             <button
