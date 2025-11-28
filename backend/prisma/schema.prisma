@@ -13,8 +13,12 @@ datasource db {
 // User model - supports both license key (desktop) and password (docker) authentication
 model User {
   id            String   @id @default(uuid())
+  externalId    String   @unique // Clerk User ID
   email         String   @unique
-  name          String
+  firstName     String?
+  lastName      String?
+  imageUrl      String?
+  name          String?  // Full name (optional)
   passwordHash  String?  // For Docker mode
   licenseKey    String?  @unique // For Desktop mode
   role          Role     @default(USER)
@@ -32,6 +36,7 @@ model User {
   
   @@index([email])
   @@index([licenseKey])
+  @@index([externalId])
 }
 
 enum Role {
