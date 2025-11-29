@@ -71,3 +71,6 @@ coverage/
 # Uploads
 uploads/
 temp/
+
+# Docker backups
+docker/backup-*/
