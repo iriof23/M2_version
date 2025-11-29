@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Editor } from '@tiptap/react';
 import {
     Bold,
@@ -10,7 +12,12 @@ import {
     Quote,
     Terminal,
     RemoveFormatting,
+    Sparkles,
+    Loader2,
 } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
+import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 interface EditorToolbarProps {
@@ -18,28 +25,118 @@ interface EditorToolbarProps {
 }
 
 export const EditorToolbar = ({ editor }: EditorToolbarProps) => {
+    const { getToken } = useAuth();
+    const { toast } = useToast();
+    const navigate = useNavigate();
+    const [isGenerating, setIsGenerating] = useState(false);
+
     if (!editor) {
         return null;
     }
+
+    const handleAiGenerate = async () => {
+        // Get selected text
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to);
+
+        // Check if text is selected
+        if (!selectedText.trim()) {
+            toast({
+                title: 'No text selected',
+                description: 'Please select text to improve with AI',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        try {
+            setIsGenerating(true);
+            const token = await getToken();
+
+            if (!token) {
+                toast({
+                    title: 'Authentication required',
+                    description: 'Please sign in to use AI features',
+                    variant: 'destructive',
+                });
+                return;
+            }
+
+            // Call AI API
+            const response = await api.post(
+                '/v1/ai/generate',
+                {
+                    type: 'fix_grammar',
+                    prompt: selectedText,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            // Replace selected text with AI-generated result
+            editor
+                .chain()
+                .focus()
+                .deleteSelection()
+                .insertContent(response.data.result)
+                .run();
+
+            toast({
+                title: '✨ Text improved!',
+                description: `Used ${response.data.credits_used} credit(s). ${response.data.remaining_credits} remaining.`,
+            });
+        } catch (error: any) {
+            console.error('AI generation error:', error);
+
+            // Handle insufficient credits (402)
+            if (error.response?.status === 402) {
+                toast({
+                    title: 'Running low on sparks! ⚡',
+                    description: 'You need more credits to use AI features. Top up now?',
+                    variant: 'destructive',
+                });
+                // Redirect to billing settings
+                navigate('/settings?tab=billing');
+            } else {
+                toast({
+                    title: 'AI generation failed',
+                    description: error.response?.data?.detail || 'Failed to generate AI text. Please try again.',
+                    variant: 'destructive',
+                });
+            }
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const ToolbarButton = ({
         onClick,
         isActive = false,
         children,
         title,
+        disabled = false,
+        className,
     }: {
         onClick: () => void;
         isActive?: boolean;
         children: React.ReactNode;
         title: string;
+        disabled?: boolean;
+        className?: string;
     }) => (
         <button
             type="button"
             onClick={onClick}
             onMouseDown={(e) => e.preventDefault()}
+            disabled={disabled}
             className={cn(
                 'p-2 rounded-md transition-colors hover:bg-zinc-800',
-                isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400'
+                isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400',
+                disabled && 'opacity-50 cursor-not-allowed',
+                className
             )}
             title={title}
         >
@@ -122,6 +219,23 @@ export const EditorToolbar = ({ editor }: EditorToolbarProps) => {
                 title="Terminal / Code Block"
             >
                 <Terminal className="h-4 w-4" />
+            </ToolbarButton>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-zinc-800 mx-1" />
+
+            {/* AI Generate Button */}
+            <ToolbarButton
+                onClick={handleAiGenerate}
+                disabled={isGenerating}
+                title="Improve with AI (1 credit)"
+                className="text-purple-400 hover:text-purple-300"
+            >
+                {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Sparkles className="h-4 w-4" />
+                )}
             </ToolbarButton>
 
             {/* Divider */}
