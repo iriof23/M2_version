@@ -1,7 +1,10 @@
+import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Mail, Phone, Building2, Users, FileText, Activity, Edit, Archive, Download } from 'lucide-react'
+import { Mail, Phone, Building2, Users, FileText, Activity, Edit, Archive, Download, Loader2 } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface Client {
     id: string
@@ -37,7 +40,87 @@ interface ClientDetailModalProps {
     onEdit: (client: Client) => void
 }
 
+interface AssociatedProject {
+    id: string
+    name: string
+    status: string
+    priority: string
+    progress: number
+}
+
 export default function ClientDetailModal({ client, open, onClose, onEdit }: ClientDetailModalProps) {
+    const { getToken } = useAuth()
+    const [associatedProjects, setAssociatedProjects] = useState<AssociatedProject[]>([])
+    const [loadingProjects, setLoadingProjects] = useState(false)
+
+    // Fetch associated projects when client changes
+    useEffect(() => {
+        const fetchProjects = async () => {
+            if (!client?.id || !open) return
+            
+            setLoadingProjects(true)
+            try {
+                const token = await getToken()
+                if (!token) {
+                    console.warn('No auth token for fetching projects')
+                    setAssociatedProjects([])
+                    return
+                }
+
+                // Fetch projects filtered by client_id
+                const response = await api.get(`/projects/?client_id=${client.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+
+                console.log('Client projects response:', response.data)
+
+                if (Array.isArray(response.data)) {
+                    const projects: AssociatedProject[] = response.data.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        status: mapStatus(p.status),
+                        priority: 'Medium', // Default priority
+                        progress: calculateProgress(p.status),
+                    }))
+                    setAssociatedProjects(projects)
+                } else {
+                    setAssociatedProjects([])
+                }
+            } catch (error) {
+                console.error('Failed to fetch client projects:', error)
+                setAssociatedProjects([])
+            } finally {
+                setLoadingProjects(false)
+            }
+        }
+
+        fetchProjects()
+    }, [client?.id, open, getToken])
+
+    // Map API status to display status
+    const mapStatus = (status: string): string => {
+        const statusMap: Record<string, string> = {
+            'PLANNING': 'Planning',
+            'IN_PROGRESS': 'In Progress',
+            'REVIEW': 'Review',
+            'COMPLETED': 'Completed',
+            'ARCHIVED': 'Archived',
+        }
+        return statusMap[status?.toUpperCase()] || status || 'Planning'
+    }
+
+    // Calculate progress based on status
+    const calculateProgress = (status: string): number => {
+        const progressMap: Record<string, number> = {
+            'PLANNING': 10,
+            'IN_PROGRESS': 50,
+            'REVIEW': 80,
+            'COMPLETED': 100,
+            'ARCHIVED': 100,
+        }
+        return progressMap[status?.toUpperCase()] || 0
+    }
+
     if (!client) return null
 
     const getStatusColor = (status: string) => {
@@ -52,13 +135,6 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                 return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
         }
     }
-
-    // Mock data for associated projects
-    const associatedProjects = [
-        { id: '1', name: 'Q4 2024 External Pentest', status: 'In Progress', priority: 'High', progress: 65 },
-        { id: '2', name: 'Web Application Security Audit', status: 'Completed', priority: 'Medium', progress: 100 },
-        { id: '3', name: 'Infrastructure Review', status: 'Planning', priority: 'Low', progress: 15 },
-    ]
 
 
 
@@ -164,38 +240,50 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                     <div className="bg-card border border-border rounded-lg p-3">
                         <h3 className="text-sm font-semibold mb-3">Associated Projects</h3>
                         <div className="space-y-2">
-                            {associatedProjects.map((project) => (
-                                <div
-                                    key={project.id}
-                                    className="flex items-center justify-between p-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
-                                >
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium">{project.name}</p>
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                                {project.status}
-                                            </Badge>
-                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                                {project.priority}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-24">
-                                            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
-                                                <span>Progress</span>
-                                                <span>{project.progress}%</span>
-                                            </div>
-                                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-primary rounded-full transition-all"
-                                                    style={{ width: `${project.progress}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
+                            {loadingProjects ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                    <span className="ml-2 text-sm text-muted-foreground">Loading projects...</span>
                                 </div>
-                            ))}
+                            ) : associatedProjects.length === 0 ? (
+                                <div className="text-center py-4 text-muted-foreground">
+                                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">No projects associated with this client yet</p>
+                                </div>
+                            ) : (
+                                associatedProjects.map((project) => (
+                                    <div
+                                        key={project.id}
+                                        className="flex items-center justify-between p-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                                    >
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium">{project.name}</p>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                    {project.status}
+                                                </Badge>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                    {project.priority}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-24">
+                                                <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
+                                                    <span>Progress</span>
+                                                    <span>{project.progress}%</span>
+                                                </div>
+                                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-primary rounded-full transition-all"
+                                                        style={{ width: `${project.progress}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 
