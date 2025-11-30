@@ -907,21 +907,14 @@ export default function Dashboard() {
     }
     
     const handleClientAdded = (client: any) => {
-        // Save to localStorage
-        const existingClients = JSON.parse(localStorage.getItem('clients') || '[]')
-        const updatedClients = [...existingClients, client]
-        localStorage.setItem('clients', JSON.stringify(updatedClients))
+        // Update clients list in state
+        setClients(prev => [...prev, client])
         
+        // Show success toast
         toast({
-            title: "Client Added",
-            description: `${client.name} has been added successfully.`,
+            title: "✓ Client Created Successfully",
+            description: `${client.name} has been added to your portfolio.`,
         })
-        
-        // Refresh clients list
-        setClients(updatedClients)
-        
-        // Trigger page refresh to update dashboard
-        window.location.reload()
     }
     
     const handleFindingAdded = (finding: any) => {
@@ -934,28 +927,19 @@ export default function Dashboard() {
         }]
         localStorage.setItem('global_findings', JSON.stringify(updatedFindings))
         
+        // Show success toast
         toast({
-            title: "Finding Added",
+            title: "✓ Finding Added Successfully",
             description: `${finding.title} has been added to your findings library.`,
         })
-        
-        // Trigger page refresh to update stats
-        window.location.reload()
     }
     
     const handleProjectAdded = (project: any) => {
-        // Save to localStorage
-        const existingProjects = JSON.parse(localStorage.getItem('projects') || '[]')
-        const updatedProjects = [...existingProjects, project]
-        localStorage.setItem('projects', JSON.stringify(updatedProjects))
-        
+        // Show success toast
         toast({
-            title: "Project Created",
-            description: `${project.name} has been created successfully.`,
+            title: "✓ Project Created Successfully",
+            description: `${project.name} has been created and is ready for work.`,
         })
-        
-        // Trigger page refresh to update dashboard
-        window.location.reload()
     }
 
     // Count total projects for the header
