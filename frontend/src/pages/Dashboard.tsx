@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,7 @@ import { AddFindingDialog } from '@/components/AddFindingDialog'
 import { AddProjectDialog } from '@/components/AddProjectDialog'
 import ProjectDetailModal from '@/components/ProjectDetailModal'
 import { useToast } from '@/components/ui/use-toast'
+import { api } from '@/lib/api'
 import {
     Play,
     ArrowRight,
@@ -26,7 +27,8 @@ import {
     Calendar,
     MoreHorizontal,
     Activity,
-    Shield
+    Shield,
+    Loader2
 } from 'lucide-react'
 
 // --- Helper Functions ---
@@ -83,9 +85,9 @@ interface DashboardData {
     }>
 }
 
-// --- Mock Store Hook (Simulating Zustand + LocalStorage) ---
+// --- Dashboard Store Hook (Fetches real data from API) ---
 
-const useDashboardStore = () => {
+const useDashboardStore = (getToken: () => Promise<string | null>) => {
     const [data, setData] = useState<DashboardData>({
         activeProject: null,
         upcomingProjects: [],
@@ -97,175 +99,219 @@ const useDashboardStore = () => {
         },
         recentActivity: []
     })
+    const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        // Load data from localStorage
-        const projects: Project[] = JSON.parse(localStorage.getItem('projects') || '[]')
-        const clients = JSON.parse(localStorage.getItem('clients') || '[]')
-
-        // Calculate Stats
-        let totalFindings = 0
-        let criticalFindings = 0
-
-        projects.forEach((p: any) => {
-            const findingsKey = `findings_${p.id}`
-            const storedFindings = localStorage.getItem(findingsKey)
-            if (storedFindings) {
-                try {
-                    const findings = JSON.parse(storedFindings)
-                    totalFindings += findings.length
-                    findings.forEach((f: any) => {
-                        if (f.severity === 'Critical') criticalFindings++
-                    })
-                } catch (e) { }
+        const fetchDashboardData = async () => {
+            setIsLoading(true)
+            
+            let projects: Project[] = []
+            let clients: any[] = []
+            let reports: any[] = []
+            
+            try {
+                const token = await getToken()
+                if (token) {
+                    // Fetch real projects from API
+                    try {
+                        const projectsRes = await api.get('/v1/projects', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        })
+                        if (projectsRes.data && Array.isArray(projectsRes.data)) {
+                            projects = projectsRes.data.map((p: any) => ({
+                                id: p.id,
+                                name: p.name,
+                                clientName: p.client_name || 'Unknown Client',
+                                status: p.status === 'PLANNING' ? 'Planning' :
+                                        p.status === 'IN_PROGRESS' ? 'In Progress' :
+                                        p.status === 'COMPLETED' ? 'Completed' :
+                                        p.status === 'REVIEW' ? 'In Review' : p.status,
+                                priority: p.priority || 'Medium',
+                                progress: p.status === 'COMPLETED' ? 100 :
+                                          p.status === 'IN_PROGRESS' ? 50 :
+                                          p.status === 'REVIEW' ? 75 :
+                                          p.status === 'PLANNING' ? 10 : 0,
+                                endDate: p.end_date || new Date().toISOString(),
+                                updatedAt: p.updated_at || new Date().toISOString(),
+                                findings: []
+                            }))
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch projects:', e)
+                    }
+                    
+                    // Fetch real clients from API
+                    try {
+                        const clientsRes = await api.get('/clients', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        })
+                        if (clientsRes.data && Array.isArray(clientsRes.data)) {
+                            clients = clientsRes.data
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch clients:', e)
+                    }
+                    
+                    // Fetch reports from API
+                    try {
+                        const reportsRes = await api.get('/v1/reports/', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        })
+                        if (reportsRes.data && Array.isArray(reportsRes.data)) {
+                            reports = reportsRes.data
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch reports:', e)
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to get auth token:', e)
             }
-        })
 
-        // Active Project (Most recently updated 'In Progress' project)
-        const activeProjects = projects.filter(p => p.status === 'In Progress' || p.status === 'Active')
-        const sortedActive = [...activeProjects].sort((a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        )
-        const activeProject = sortedActive.length > 0 ? sortedActive[0] : (projects[0] || null)
+            // Calculate Stats from localStorage findings (for each project)
+            let totalFindings = 0
+            let criticalFindings = 0
 
-        // Upcoming Deadlines
-        const upcoming = [...projects]
-            .filter(p => p.status !== 'Completed' && new Date(p.endDate) > new Date())
-            .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
-            .slice(0, 3)
-
-        // Recent Activity - Build comprehensive activity feed
-        const activityList: Array<any> = []
-        
-        // Add project activities
-        projects.forEach(p => {
-            activityList.push({
-                id: `proj-${p.id}`,
-                type: 'project' as const,
-                title: p.status === 'Completed' ? 'Project Completed' : 'Project Started',
-                description: `${p.name} • ${p.clientName}`,
-                timestamp: new Date(p.updatedAt).toISOString(),
-                timestampText: formatRelativeTime(new Date(p.updatedAt)),
-                icon: <Activity className="w-4 h-4 text-blue-400" />,
-                severity: p.status
+            projects.forEach((p: any) => {
+                const findingsKey = `findings_${p.id}`
+                const storedFindings = localStorage.getItem(findingsKey)
+                if (storedFindings) {
+                    try {
+                        const findings = JSON.parse(storedFindings)
+                        totalFindings += findings.length
+                        findings.forEach((f: any) => {
+                            if (f.severity === 'Critical') criticalFindings++
+                        })
+                    } catch (e) { }
+                }
             })
-        })
-        
-        // Add findings from all projects
-        projects.forEach(p => {
-            const findingsKey = `findings_${p.id}`
-            const storedFindings = localStorage.getItem(findingsKey)
-            if (storedFindings) {
-                try {
-                    const findings = JSON.parse(storedFindings)
-                    findings.forEach((f: any) => {
-                        if (f.severity === 'Critical') {
+
+            // Active Project (Most recently updated 'In Progress' project)
+            const activeProjects = projects.filter(p => 
+                p.status === 'In Progress' || p.status === 'IN_PROGRESS' || p.status === 'In Review'
+            )
+            const sortedActive = [...activeProjects].sort((a, b) =>
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            )
+            const activeProject = sortedActive.length > 0 ? sortedActive[0] : (projects[0] || null)
+
+            // Upcoming Deadlines - Projects with future end dates, not completed
+            const upcoming = [...projects]
+                .filter(p => p.status !== 'Completed' && p.status !== 'COMPLETED' && new Date(p.endDate) > new Date())
+                .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+                .slice(0, 3)
+
+            // Recent Activity - Build comprehensive activity feed
+            const activityList: Array<any> = []
+            
+            // Add project activities
+            projects.forEach(p => {
+                activityList.push({
+                    id: `proj-${p.id}`,
+                    type: 'project' as const,
+                    title: p.status === 'Completed' || p.status === 'COMPLETED' ? 'Project Completed' : 
+                           p.status === 'In Progress' || p.status === 'IN_PROGRESS' ? 'Project In Progress' :
+                           'Project Created',
+                    description: `${p.name} • ${p.clientName}`,
+                    timestamp: new Date(p.updatedAt).toISOString(),
+                    timestampText: formatRelativeTime(new Date(p.updatedAt)),
+                    icon: <Activity className="w-4 h-4 text-blue-400" />,
+                    severity: p.status
+                })
+            })
+            
+            // Add findings from all projects (from localStorage)
+            projects.forEach(p => {
+                const findingsKey = `findings_${p.id}`
+                const storedFindings = localStorage.getItem(findingsKey)
+                if (storedFindings) {
+                    try {
+                        const findings = JSON.parse(storedFindings)
+                        findings.forEach((f: any) => {
                             activityList.push({
                                 id: `find-${f.id}`,
                                 type: 'finding' as const,
-                                title: 'Critical Finding Detected',
+                                title: f.severity === 'Critical' ? 'Critical Finding Detected' :
+                                       f.severity === 'High' ? 'High Severity Finding' :
+                                       'Finding Added',
                                 description: `${f.title} • ${p.name}`,
                                 timestamp: f.createdAt || new Date().toISOString(),
                                 timestampText: formatRelativeTime(new Date(f.createdAt || new Date())),
-                                icon: <AlertTriangle className="w-4 h-4 text-red-400" />,
+                                icon: f.severity === 'Critical' ? <AlertTriangle className="w-4 h-4 text-red-400" /> :
+                                      f.severity === 'High' ? <AlertTriangle className="w-4 h-4 text-orange-400" /> :
+                                      <Shield className="w-4 h-4 text-yellow-400" />,
                                 severity: f.severity
                             })
-                        }
-                    })
-                } catch (e) { }
-            }
-        })
-        
-        // Add client activities
-        clients.forEach((c: any) => {
-            activityList.push({
-                id: `client-${c.id}`,
-                type: 'client' as const,
-                title: 'New Client Onboarded',
-                description: `${c.name} added to portfolio`,
-                timestamp: c.createdAt || new Date().toISOString(),
-                timestampText: formatRelativeTime(new Date(c.createdAt || new Date())),
-                icon: <Users className="w-4 h-4 text-emerald-400" />,
-                severity: c.status
-            })
-        })
-        
-        // Sort by most recent and take top 5
-        const activity = activityList
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-            .slice(0, 5)
-
-        setData({
-            activeProject,
-            upcomingProjects: upcoming,
-            stats: {
-                totalFindings,
-                criticalFindings,
-                activeClients: clients.length,
-                completedProjects: projects.filter(p => p.status === 'Completed').length
-            },
-            recentActivity: activity.length > 0 ? activity : [
-                {
-                    id: 'mock-1',
-                    type: 'finding',
-                    title: 'SQL Injection Vulnerability',
-                    description: 'Critical SQL Injection found in login form • Q4 2024 External Pentest',
-                    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                    timestampText: '2h ago',
-                    icon: <AlertTriangle className="w-4 h-4 text-red-400" />
-                },
-                {
-                    id: 'mock-2',
-                    type: 'project',
-                    title: 'New Project Started',
-                    description: 'Internal Security Assessment • Acme Corporation',
-                    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-                    timestampText: '5h ago',
-                    icon: <Activity className="w-4 h-4 text-blue-400" />
-                },
-                {
-                    id: 'mock-3',
-                    type: 'finding',
-                    title: 'Cross-Site Scripting (XSS)',
-                    description: 'Reflected XSS in search parameter • Web App Security Review',
-                    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-                    timestampText: '8h ago',
-                    icon: <AlertTriangle className="w-4 h-4 text-orange-400" />
-                },
-                {
-                    id: 'mock-4',
-                    type: 'report',
-                    title: 'Report Generated',
-                    description: 'Final penetration test report completed • Q3 2024 Assessment',
-                    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                    timestampText: '1d ago',
-                    icon: <FileText className="w-4 h-4 text-purple-400" />
-                },
-                {
-                    id: 'mock-5',
-                    type: 'client',
-                    title: 'New Client Onboarded',
-                    description: 'Retail Solutions Ltd added to portfolio',
-                    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                    timestampText: '2d ago',
-                    icon: <Users className="w-4 h-4 text-emerald-400" />
+                        })
+                    } catch (e) { }
                 }
-            ]
-        })
-    }, [])
+            })
+            
+            // Add client activities
+            clients.forEach((c: any) => {
+                activityList.push({
+                    id: `client-${c.id}`,
+                    type: 'client' as const,
+                    title: 'Client Added',
+                    description: `${c.name} added to portfolio`,
+                    timestamp: c.created_at || c.createdAt || new Date().toISOString(),
+                    timestampText: formatRelativeTime(new Date(c.created_at || c.createdAt || new Date())),
+                    icon: <Users className="w-4 h-4 text-emerald-400" />,
+                    severity: c.status
+                })
+            })
+            
+            // Add report activities
+            reports.forEach((r: any) => {
+                activityList.push({
+                    id: `report-${r.id}`,
+                    type: 'report' as const,
+                    title: r.status === 'COMPLETED' ? 'Report Completed' : 'Report Created',
+                    description: `${r.title} • ${r.project_name || 'Project'}`,
+                    timestamp: r.updated_at || r.created_at || new Date().toISOString(),
+                    timestampText: formatRelativeTime(new Date(r.updated_at || r.created_at || new Date())),
+                    icon: <FileText className="w-4 h-4 text-purple-400" />,
+                    severity: r.status
+                })
+            })
+            
+            // Sort by most recent and take top 5
+            const activity = activityList
+                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                .slice(0, 5)
 
-    return data
+            setData({
+                activeProject,
+                upcomingProjects: upcoming,
+                stats: {
+                    totalFindings,
+                    criticalFindings,
+                    activeClients: clients.length,
+                    completedProjects: projects.filter(p => p.status === 'Completed' || p.status === 'COMPLETED').length
+                },
+                recentActivity: activity
+            })
+            
+            setIsLoading(false)
+        }
+        
+        fetchDashboardData()
+    }, [getToken])
+
+    return { data, isLoading }
 }
 
 // --- Components ---
 
 const HeroCard = ({ 
-    project, 
+    project,
+    criticalCount,
     onStartProject,
     onResumeReport,
     onViewDetails
 }: { 
     project: Project | null
+    criticalCount: number
     onStartProject: () => void
     onResumeReport?: (project: Project) => void
     onViewDetails?: (project: Project) => void
@@ -273,6 +319,28 @@ const HeroCard = ({
     const { user: storeUser } = useAuthStore()
     const { user: clerkUser } = useUser()
     const displayName = clerkUser?.firstName || storeUser?.name || 'Commander'
+
+    // Calculate days until due
+    const getDaysUntilDue = (endDate: string) => {
+        const end = new Date(endDate)
+        const now = new Date()
+        const diffTime = end.getTime() - now.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        return diffDays
+    }
+
+    // Get critical findings count for this project from localStorage
+    const getProjectCriticalCount = (projectId: string) => {
+        const findingsKey = `findings_${projectId}`
+        const stored = localStorage.getItem(findingsKey)
+        if (stored) {
+            try {
+                const findings = JSON.parse(stored)
+                return findings.filter((f: any) => f.severity === 'Critical').length
+            } catch (e) { }
+        }
+        return 0
+    }
 
     if (!project) return (
         <Card className="col-span-1 lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card border-primary/20">
@@ -285,6 +353,9 @@ const HeroCard = ({
             </CardContent>
         </Card>
     )
+
+    const projectCriticalCount = getProjectCriticalCount(project.id)
+    const daysUntilDue = getDaysUntilDue(project.endDate)
 
     return (
         <Card className="col-span-1 lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-primary/10 via-card to-card border-primary/20 shadow-lg group">
@@ -308,14 +379,30 @@ const HeroCard = ({
 
                 <div className="mt-8 space-y-6">
                     <div className="flex flex-wrap gap-3">
-                        <Badge variant="destructive" className="px-3 py-1 text-sm gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            4 Critical Issues
-                        </Badge>
-                        <Badge variant="secondary" className="px-3 py-1 text-sm gap-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 border-orange-500/20">
-                            <Clock className="w-3.5 h-3.5" />
-                            Due in 2 Days
-                        </Badge>
+                        {projectCriticalCount > 0 && (
+                            <Badge variant="destructive" className="px-3 py-1 text-sm gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                {projectCriticalCount} Critical Issue{projectCriticalCount !== 1 ? 's' : ''}
+                            </Badge>
+                        )}
+                        {daysUntilDue <= 7 && daysUntilDue > 0 && (
+                            <Badge variant="secondary" className="px-3 py-1 text-sm gap-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 border-orange-500/20">
+                                <Clock className="w-3.5 h-3.5" />
+                                Due in {daysUntilDue} Day{daysUntilDue !== 1 ? 's' : ''}
+                            </Badge>
+                        )}
+                        {daysUntilDue <= 0 && (
+                            <Badge variant="destructive" className="px-3 py-1 text-sm gap-1.5">
+                                <Clock className="w-3.5 h-3.5" />
+                                Overdue
+                            </Badge>
+                        )}
+                        {projectCriticalCount === 0 && daysUntilDue > 7 && (
+                            <Badge variant="secondary" className="px-3 py-1 text-sm gap-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                On Track
+                            </Badge>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -604,7 +691,8 @@ const PulseFeed = ({ activity, onItemClick, onViewAll }: {
 export default function Dashboard() {
     const navigate = useNavigate()
     const { toast } = useToast()
-    const data = useDashboardStore()
+    const { getToken } = useAuth()
+    const { data, isLoading } = useDashboardStore(getToken)
     
     // Dialog states
     const [showClientDialog, setShowClientDialog] = useState(false)
@@ -616,9 +704,29 @@ export default function Dashboard() {
     const [clients, setClients] = useState<any[]>([])
     
     useEffect(() => {
-        const storedClients = JSON.parse(localStorage.getItem('clients') || '[]')
-        setClients(storedClients)
-    }, [showProjectDialog])
+        const fetchClients = async () => {
+            try {
+                const token = await getToken()
+                if (token) {
+                    const response = await api.get('/clients', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                    if (response.data && Array.isArray(response.data)) {
+                        setClients(response.data)
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch clients:', e)
+                // Fallback to localStorage
+                const storedClients = JSON.parse(localStorage.getItem('clients') || '[]')
+                setClients(storedClients)
+            }
+        }
+        
+        if (showProjectDialog) {
+            fetchClients()
+        }
+    }, [showProjectDialog, getToken])
     
     // Handlers
     const handleNewClient = () => {
@@ -795,6 +903,20 @@ export default function Dashboard() {
         window.location.reload()
     }
 
+    // Count total projects for the header
+    const activeProjectsCount = data.upcomingProjects.length + (data.activeProject ? 1 : 0)
+
+    if (isLoading) {
+        return (
+            <div className="h-[calc(100vh-100px)] flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                    <p className="text-muted-foreground mt-2">Loading dashboard...</p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header */}
@@ -802,7 +924,7 @@ export default function Dashboard() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Mission Control</h1>
                     <p className="text-muted-foreground mt-1">
-                        {data.stats.activeClients} active projects • {data.stats.criticalFindings} critical findings require attention
+                        {activeProjectsCount} active project{activeProjectsCount !== 1 ? 's' : ''} • {data.stats.criticalFindings > 0 ? `${data.stats.criticalFindings} critical finding${data.stats.criticalFindings !== 1 ? 's' : ''} require attention` : 'All systems nominal'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card/50 px-3 py-1 rounded-full border border-border/50">
@@ -815,7 +937,8 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Row 1: Focus Zone + Horizon */}
                 <HeroCard 
-                    project={data.activeProject} 
+                    project={data.activeProject}
+                    criticalCount={data.stats.criticalFindings}
                     onStartProject={handleStartProject}
                     onResumeReport={handleResumeReport}
                     onViewDetails={handleViewDetails}
