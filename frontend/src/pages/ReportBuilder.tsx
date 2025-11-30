@@ -129,6 +129,68 @@ export default function ReportBuilder() {
     const [projects, setProjects] = useState(mockProjects)
     const [projectReports, setProjectReports] = useState<Record<string, Report[]>>({})
     const [isOpeningEditor, setIsOpeningEditor] = useState(false)
+    const [isLoadingProjects, setIsLoadingProjects] = useState(true)
+
+    // Fetch real projects from API
+    useEffect(() => {
+        const fetchProjects = async () => {
+            setIsLoadingProjects(true)
+            try {
+                const token = await getToken()
+                if (!token) {
+                    // Fallback to mock projects if not authenticated
+                    setProjects(mockProjects)
+                    setSelectedProject(mockProjects[0])
+                    return
+                }
+                
+                const response = await api.get('/v1/projects', {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                
+                if (response.data && response.data.length > 0) {
+                    // Map API projects to the format expected by the UI
+                    const apiProjects = response.data.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        clientName: p.client_name || 'Unknown Client',
+                        clientLogoUrl: '🏢',
+                        status: p.status === 'PLANNING' ? 'Planning' : 
+                                p.status === 'IN_PROGRESS' ? 'In Progress' : 
+                                p.status === 'COMPLETED' ? 'Completed' : 'In Progress',
+                        progress: 0,
+                        findingsCount: p.finding_count || 0,
+                        findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+                        teamMembers: [],
+                        leadTester: p.lead_name || '',
+                        startDate: p.start_date ? new Date(p.start_date) : new Date(),
+                        endDate: p.end_date ? new Date(p.end_date) : new Date(),
+                        lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
+                        scope: p.description || '',
+                        priority: 'Medium' as const
+                    }))
+                    
+                    // Combine real projects with mock projects (real first)
+                    const combinedProjects = [...apiProjects, ...mockProjects]
+                    setProjects(combinedProjects)
+                    setSelectedProject(combinedProjects[0])
+                } else {
+                    // No real projects, use mock data
+                    setProjects(mockProjects)
+                    setSelectedProject(mockProjects[0])
+                }
+            } catch (error) {
+                console.error('Failed to fetch projects:', error)
+                // Fallback to mock projects on error
+                setProjects(mockProjects)
+                setSelectedProject(mockProjects[0])
+            } finally {
+                setIsLoadingProjects(false)
+            }
+        }
+        
+        fetchProjects()
+    }, [getToken])
 
     // Fetch reports for all projects
     useEffect(() => {
@@ -345,19 +407,49 @@ export default function ReportBuilder() {
                     </p>
                 </div>
                 <NewReportDialog onReportCreated={() => {
-                    // Refresh reports list after a new report is created
-                    const refreshReports = async () => {
+                    // Refresh both projects and reports after a new report is created
+                    const refreshData = async () => {
                         try {
                             const token = await getToken()
                             if (!token) return
                             
-                            const response = await api.get('/v1/reports/', {
+                            // Refresh projects
+                            const projectsResponse = await api.get('/v1/projects', {
                                 headers: { Authorization: `Bearer ${token}` }
                             })
                             
-                            // Group reports by project ID
+                            if (projectsResponse.data && projectsResponse.data.length > 0) {
+                                const apiProjects = projectsResponse.data.map((p: any) => ({
+                                    id: p.id,
+                                    name: p.name,
+                                    clientName: p.client_name || 'Unknown Client',
+                                    clientLogoUrl: '🏢',
+                                    status: p.status === 'PLANNING' ? 'Planning' : 
+                                            p.status === 'IN_PROGRESS' ? 'In Progress' : 
+                                            p.status === 'COMPLETED' ? 'Completed' : 'In Progress',
+                                    progress: 0,
+                                    findingsCount: p.finding_count || 0,
+                                    findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+                                    teamMembers: [],
+                                    leadTester: p.lead_name || '',
+                                    startDate: p.start_date ? new Date(p.start_date) : new Date(),
+                                    endDate: p.end_date ? new Date(p.end_date) : new Date(),
+                                    lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
+                                    scope: p.description || '',
+                                    priority: 'Medium' as const
+                                }))
+                                
+                                const combinedProjects = [...apiProjects, ...mockProjects]
+                                setProjects(combinedProjects)
+                            }
+                            
+                            // Refresh reports
+                            const reportsResponse = await api.get('/v1/reports/', {
+                                headers: { Authorization: `Bearer ${token}` }
+                            })
+                            
                             const reportsByProject: Record<string, Report[]> = {}
-                            response.data.forEach((report: Report) => {
+                            reportsResponse.data.forEach((report: Report) => {
                                 if (!reportsByProject[report.project_id]) {
                                     reportsByProject[report.project_id] = []
                                 }
@@ -366,10 +458,10 @@ export default function ReportBuilder() {
                             
                             setProjectReports(reportsByProject)
                         } catch (error) {
-                            console.error('Failed to refresh reports:', error)
+                            console.error('Failed to refresh data:', error)
                         }
                     }
-                    refreshReports()
+                    refreshData()
                 }} />
             </div>
 
