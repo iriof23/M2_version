@@ -49,7 +49,6 @@ import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { api } from '@/lib/api'
-import ProjectTeamManager from '@/components/projects/ProjectTeamManager'
 
 interface AddProjectDialogProps {
     open: boolean
@@ -63,8 +62,6 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
     const { getToken } = useAuth()
     const { toast } = useToast()
     const [step, setStep] = useState(1)
-    const [projectMembers, setProjectMembers] = useState<any[]>([])
-    const [loadingMembers, setLoadingMembers] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [startDateOpen, setStartDateOpen] = useState(false)
     const [endDateOpen, setEndDateOpen] = useState(false)
@@ -93,57 +90,42 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
         teamMembers: [] as string[]
     })
 
-    // Fetch project members when editing
-    useEffect(() => {
-        const fetchProjectMembers = async () => {
-            if (editingProject?.id) {
-                try {
-                    setLoadingMembers(true)
-                    const token = await getToken()
-                    
-                    if (!token) {
-                        console.error('No auth token available')
-                        return
-                    }
-
-                    // Fetch project with members
-                    const response = await api.get(`/projects/${editingProject.id}`, {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    })
-                    
-                    setProjectMembers(response.data.members || [])
-                } catch (error: any) {
-                    console.error('Failed to fetch project members:', error)
-                    setProjectMembers([])
-                } finally {
-                    setLoadingMembers(false)
-                }
-            } else {
-                setProjectMembers([])
-            }
-        }
-
-        if (open && editingProject?.id) {
-            fetchProjectMembers()
-        } else if (!editingProject) {
-            setProjectMembers([])
-        }
-    }, [editingProject?.id, open, getToken])
-
     // Update form data when editingProject changes
     useEffect(() => {
         if (editingProject) {
+            // Parse JSON strings for scope and complianceFrameworks from API
+            let parsedScope: string[] = []
+            if (editingProject.scope) {
+                try {
+                    parsedScope = typeof editingProject.scope === 'string' 
+                        ? JSON.parse(editingProject.scope) 
+                        : editingProject.scope
+                } catch {
+                    parsedScope = []
+                }
+            }
+            
+            let parsedComplianceFrameworks: string[] = []
+            if (editingProject.complianceFrameworks || editingProject.compliance_frameworks) {
+                try {
+                    const frameworks = editingProject.complianceFrameworks || editingProject.compliance_frameworks
+                    parsedComplianceFrameworks = typeof frameworks === 'string'
+                        ? JSON.parse(frameworks)
+                        : frameworks
+                } catch {
+                    parsedComplianceFrameworks = []
+                }
+            }
+            
             setFormData({
                 name: editingProject.name || '',
                 clientId: editingProject.clientId || editingProject.client_id || '',
                 clientName: editingProject.clientName || editingProject.client_name || '',
-                type: editingProject.type || 'External',
+                type: editingProject.type || editingProject.project_type || 'External',
                 description: editingProject.description || '',
-                scope: editingProject.scope || [],
+                scope: parsedScope,
                 methodology: editingProject.methodology || 'OWASP Testing Guide v4',
-                complianceFrameworks: editingProject.complianceFrameworks || [],
+                complianceFrameworks: parsedComplianceFrameworks,
                 startDate: editingProject.startDate || editingProject.start_date ? new Date(editingProject.startDate || editingProject.start_date) : undefined,
                 endDate: editingProject.endDate || editingProject.end_date ? new Date(editingProject.endDate || editingProject.end_date) : undefined,
                 priority: editingProject.priority || 'Medium',
@@ -239,6 +221,32 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
             }
             if (formData.endDate) {
                 payload.end_date = formData.endDate.toISOString()
+            }
+            // Project configuration fields
+            if (formData.type) {
+                payload.project_type = formData.type
+            }
+            // Always send scope - even empty array to allow clearing
+            payload.scope = JSON.stringify(formData.scope || [])
+            if (formData.methodology) {
+                payload.methodology = formData.methodology
+            }
+            if (formData.complianceFrameworks && formData.complianceFrameworks.length > 0) {
+                payload.compliance_frameworks = JSON.stringify(formData.complianceFrameworks)
+            }
+            if (formData.priority) {
+                payload.priority = formData.priority
+            }
+            // Send status - map to backend enum format
+            if (formData.status) {
+                const statusMap: Record<string, string> = {
+                    'Planning': 'PLANNING',
+                    'In Progress': 'IN_PROGRESS',
+                    'On Hold': 'ON_HOLD',
+                    'Completed': 'COMPLETED',
+                    'Cancelled': 'CANCELLED',
+                }
+                payload.status = statusMap[formData.status] || 'PLANNING'
             }
 
             console.log('Creating project with payload:', payload)
@@ -674,39 +682,23 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                     {/* Step 4: Team Assignment */}
                     {step === 4 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            {editingProject?.id ? (
-                                // Use ProjectTeamManager for editing existing projects
-                                <ProjectTeamManager
-                                    projectId={editingProject.id}
-                                    members={projectMembers}
-                                    onMembersChange={(updatedMembers) => {
-                                        setProjectMembers(updatedMembers)
-                                        // Notify parent if needed
-                                        if (onProjectAdded) {
-                                            onProjectAdded({
-                                                ...editingProject,
-                                                members: updatedMembers
-                                            })
+                            <div className="space-y-4">
+                                <div className="text-center py-8 border border-dashed rounded-lg">
+                                    <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                                    <p className="text-sm font-medium text-foreground mb-1">
+                                        Team Assignment
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {editingProject 
+                                            ? 'Manage team members from the project details page'
+                                            : 'Assign team members after creating the project'
                                         }
-                                    }}
-                                />
-                            ) : (
-                                // Keep original UI for new projects (team assignment happens after creation)
-                                <div className="space-y-4">
-                                    <div className="text-center py-8 border border-dashed rounded-lg">
-                                        <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                                        <p className="text-sm font-medium text-foreground mb-1">
-                                            Team Assignment
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Assign team members after creating the project
-                                        </p>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground text-center">
-                                        You can manage the project team from the project details page once it's created.
-                                    </div>
+                                    </p>
                                 </div>
-                            )}
+                                <div className="text-xs text-muted-foreground text-center">
+                                    You can manage the project team from the project details page {editingProject ? '' : "once it's created"}.
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

@@ -229,32 +229,68 @@ export default function Projects() {
                 
                 if (Array.isArray(response.data) && response.data.length > 0) {
                     // Map API response to frontend Project format
-                    const apiProjects: Project[] = response.data.map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        clientId: p.client_id,
-                        clientName: p.client_name,
-                        clientLogoUrl: '',
-                        type: 'Web App' as const,
-                        status: mapApiStatus(p.status),
-                        priority: 'Medium' as const,
-                        startDate: p.start_date ? new Date(p.start_date) : new Date(),
-                        endDate: p.end_date ? new Date(p.end_date) : new Date(),
-                        progress: 0,
-                        findingsCount: p.finding_count || 0,
-                        findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
-                        teamMembers: [],
-                        lastActivity: 'Just now',
-                        lastActivityDate: new Date(p.updated_at),
-                        createdAt: new Date(p.created_at),
-                        updatedAt: new Date(p.updated_at),
-                        // Additional required fields
-                        description: p.description || '',
-                        scope: [],
-                        methodology: 'OWASP Testing Guide v4',
-                        leadTester: p.lead_name || '',
-                        complianceFrameworks: [],
-                    }))
+                    const apiProjects: Project[] = response.data.map((p: any) => {
+                        // Parse JSON strings for scope and complianceFrameworks
+                        let parsedScope: string[] = []
+                        if (p.scope) {
+                            try {
+                                parsedScope = typeof p.scope === 'string' ? JSON.parse(p.scope) : p.scope
+                            } catch { parsedScope = [] }
+                        }
+                        
+                        let parsedComplianceFrameworks: string[] = []
+                        if (p.compliance_frameworks) {
+                            try {
+                                parsedComplianceFrameworks = typeof p.compliance_frameworks === 'string' 
+                                    ? JSON.parse(p.compliance_frameworks) 
+                                    : p.compliance_frameworks
+                            } catch { parsedComplianceFrameworks = [] }
+                        }
+                        
+                        // Map priority from API
+                        const mapPriority = (priority: string): Project['priority'] => {
+                            const priorityMap: Record<string, Project['priority']> = {
+                                'Low': 'Low', 'Medium': 'Medium', 'High': 'High', 'Critical': 'Critical'
+                            }
+                            return priorityMap[priority] || 'Medium'
+                        }
+                        
+                        // Map project type from API
+                        const mapType = (type: string): Project['type'] => {
+                            const typeMap: Record<string, Project['type']> = {
+                                'External': 'External', 'Internal': 'Internal', 'Web App': 'Web App',
+                                'Mobile': 'Mobile', 'API': 'API', 'Cloud': 'Cloud', 'Network': 'Network'
+                            }
+                            return typeMap[type] || 'Web App'
+                        }
+                        
+                        return {
+                            id: p.id,
+                            name: p.name,
+                            clientId: p.client_id,
+                            clientName: p.client_name,
+                            clientLogoUrl: '',
+                            type: mapType(p.project_type),
+                            status: mapApiStatus(p.status),
+                            priority: mapPriority(p.priority),
+                            startDate: p.start_date ? new Date(p.start_date) : new Date(),
+                            endDate: p.end_date ? new Date(p.end_date) : new Date(),
+                            progress: 0,
+                            findingsCount: p.finding_count || 0,
+                            findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+                            teamMembers: [],
+                            lastActivity: 'Just now',
+                            lastActivityDate: new Date(p.updated_at),
+                            createdAt: new Date(p.created_at),
+                            updatedAt: new Date(p.updated_at),
+                            // Additional required fields
+                            description: p.description || '',
+                            scope: parsedScope,
+                            methodology: p.methodology || 'OWASP Testing Guide v4',
+                            leadTester: p.lead_name || '',
+                            complianceFrameworks: parsedComplianceFrameworks,
+                        }
+                    })
                     
                     console.log(`Loaded ${apiProjects.length} real projects from API`)
                     setProjects(apiProjects)
@@ -304,30 +340,49 @@ export default function Projects() {
         localStorage.setItem('projectsViewMode', viewMode)
     }, [viewMode])
 
-    // Load actual findings counts and severity from localStorage
+    // Load actual findings counts and severity from API
     useEffect(() => {
-        const data: Record<string, any> = {}
-        projects.forEach(project => {
-            const storageKey = `findings_${project.id}`
-            const stored = localStorage.getItem(storageKey)
-            if (stored) {
-                try {
-                    const findings = JSON.parse(stored)
-                    const breakdown = { critical: 0, high: 0, medium: 0, low: 0 }
-                    findings.forEach((f: any) => {
-                        const s = f.severity.toLowerCase() as keyof typeof breakdown
-                        if (breakdown[s] !== undefined) breakdown[s]++
-                    })
-                    data[project.id] = { count: findings.length, severity: breakdown }
-                } catch (e) {
-                    data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
-                }
-            } else {
-                data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
+        const fetchFindingsData = async () => {
+            if (projects.length === 0) return
+            
+            try {
+                const token = await getToken()
+                if (!token) return
+                
+                const data: Record<string, { count: number, severity: { critical: number, high: number, medium: number, low: number } }> = {}
+                
+                // Fetch findings for all projects in parallel
+                await Promise.all(projects.map(async (project) => {
+                    try {
+                        const response = await api.get(`/findings/?project_id=${project.id}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        })
+                        
+                        if (Array.isArray(response.data)) {
+                            const findings = response.data
+                            const breakdown = { critical: 0, high: 0, medium: 0, low: 0 }
+                            findings.forEach((f: any) => {
+                                const severity = (f.severity || '').toLowerCase() as keyof typeof breakdown
+                                if (breakdown[severity] !== undefined) breakdown[severity]++
+                            })
+                            data[project.id] = { count: findings.length, severity: breakdown }
+                        } else {
+                            data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
+                        }
+                    } catch (error) {
+                        console.error(`Failed to fetch findings for project ${project.id}:`, error)
+                        data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
+                    }
+                }))
+                
+                setProjectFindingsData(data)
+            } catch (error) {
+                console.error('Failed to fetch findings data:', error)
             }
-        })
-        setProjectFindingsData(data)
-    }, [projects])
+        }
+        
+        fetchFindingsData()
+    }, [projects, getToken])
 
     // Filter management functions
     const removeFilter = (id: string) => {
@@ -350,9 +405,15 @@ export default function Projects() {
     }
 
     const handleProjectAdded = (newProject: any) => {
+        // Map the status to title case (API returns uppercase like "PLANNING")
+        const mappedProject = {
+            ...newProject,
+            status: mapApiStatus(newProject.status)
+        }
+        
         if (editingProject) {
             // Update existing project
-            const updatedProjects = projects.map(p => p.id === editingProject.id ? { ...p, ...newProject, id: editingProject.id } : p)
+            const updatedProjects = projects.map(p => p.id === editingProject.id ? { ...p, ...mappedProject, id: editingProject.id } : p)
             setProjects(updatedProjects)
             localStorage.setItem('projects', JSON.stringify(updatedProjects))
             setEditingProject(null)
@@ -360,7 +421,7 @@ export default function Projects() {
             logProjectUpdated(newProject.name || editingProject.name, editingProject.id)
         } else {
             // Add new project
-            const updatedProjects = [...projects, newProject]
+            const updatedProjects = [...projects, mappedProject]
             setProjects(updatedProjects)
             // Log create activity
             logProjectCreated(newProject.name, newProject.client_name || newProject.clientName || 'Unknown', newProject.id)

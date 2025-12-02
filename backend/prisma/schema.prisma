@@ -151,6 +151,13 @@ model Project {
   status      ProjectStatus @default(PLANNING)
   startDate   DateTime?
   endDate     DateTime?
+  
+  // Project configuration
+  projectType   String?  // External, Internal, Web App, Mobile, API, Cloud, Network
+  scope         String?  // JSON array of scope items
+  methodology   String?  // Testing methodology
+  complianceFrameworks String?  // JSON array of compliance frameworks
+  priority      String?  @default("Medium") // Low, Medium, High, Critical
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -176,6 +183,8 @@ enum ProjectStatus {
   REVIEW
   COMPLETED
   ARCHIVED
+  ON_HOLD
+  CANCELLED
 }
 
 enum ProjectRole {

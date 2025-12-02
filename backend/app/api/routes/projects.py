@@ -21,6 +21,12 @@ class ProjectCreate(BaseModel):
     client_id: str
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    project_type: Optional[str] = None
+    scope: Optional[str] = None  # JSON array as string
+    methodology: Optional[str] = None
+    compliance_frameworks: Optional[str] = None  # JSON array as string
+    priority: Optional[str] = "Medium"
+    status: Optional[str] = "PLANNING"  # Default status
 
 
 class ProjectUpdate(BaseModel):
@@ -29,6 +35,11 @@ class ProjectUpdate(BaseModel):
     status: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    project_type: Optional[str] = None
+    scope: Optional[str] = None
+    methodology: Optional[str] = None
+    compliance_frameworks: Optional[str] = None
+    priority: Optional[str] = None
 
 
 class ProjectMemberInResponse(BaseModel):
@@ -48,6 +59,11 @@ class ProjectResponse(BaseModel):
     status: str
     start_date: Optional[str]
     end_date: Optional[str]
+    project_type: Optional[str]
+    scope: Optional[str]
+    methodology: Optional[str]
+    compliance_frameworks: Optional[str]
+    priority: Optional[str]
     client_id: str
     client_name: str
     lead_id: str
@@ -157,6 +173,11 @@ async def list_projects(
             status=project.status,
             start_date=project.startDate.isoformat() if project.startDate else None,
             end_date=project.endDate.isoformat() if project.endDate else None,
+            project_type=project.projectType,
+            scope=project.scope,
+            methodology=project.methodology,
+            compliance_frameworks=project.complianceFrameworks,
+            priority=project.priority,
             client_id=project.clientId,
             client_name=project.client.name,
             lead_id=project.leadId,
@@ -199,7 +220,12 @@ async def create_project(
             "leadId": current_user.id,
             "startDate": project_data.start_date,
             "endDate": project_data.end_date,
-            "status": "PLANNING",
+            "status": project_data.status or "PLANNING",
+            "projectType": project_data.project_type,
+            "scope": project_data.scope,
+            "methodology": project_data.methodology,
+            "complianceFrameworks": project_data.compliance_frameworks,
+            "priority": project_data.priority,
         },
         include={
             "client": True,
@@ -227,6 +253,11 @@ async def create_project(
         status=project_with_counts.status,
         start_date=project_with_counts.startDate.isoformat() if project_with_counts.startDate else None,
         end_date=project_with_counts.endDate.isoformat() if project_with_counts.endDate else None,
+        project_type=project_with_counts.projectType,
+        scope=project_with_counts.scope,
+        methodology=project_with_counts.methodology,
+        compliance_frameworks=project_with_counts.complianceFrameworks,
+        priority=project_with_counts.priority,
         client_id=project_with_counts.clientId,
         client_name=project_with_counts.client.name,
         lead_id=project_with_counts.leadId,
@@ -328,12 +359,8 @@ async def get_project(
                     "user": True
                 }
             },
-            "_count": {
-                "select": {
-                    "findings": True,
-                    "reports": True,
-                }
-            }
+            "findings": True,
+            "reports": True,
         }
     )
     
@@ -372,14 +399,19 @@ async def get_project(
         status=project.status,
         start_date=project.startDate.isoformat() if project.startDate else None,
         end_date=project.endDate.isoformat() if project.endDate else None,
+        project_type=project.projectType,
+        scope=project.scope,
+        methodology=project.methodology,
+        compliance_frameworks=project.complianceFrameworks,
+        priority=project.priority,
         client_id=project.clientId,
         client_name=project.client.name,
         lead_id=project.leadId,
         lead_name=project.lead.name,
         created_at=project.createdAt.isoformat(),
         updated_at=project.updatedAt.isoformat(),
-        finding_count=project._count.findings,
-        report_count=project._count.reports,
+        finding_count=len(project.findings) if project.findings else 0,
+        report_count=len(project.reports) if project.reports else 0,
         members=members,
     )
 
@@ -421,6 +453,16 @@ async def update_project(
         update_data["startDate"] = project_data.start_date
     if project_data.end_date is not None:
         update_data["endDate"] = project_data.end_date
+    if project_data.project_type is not None:
+        update_data["projectType"] = project_data.project_type
+    if project_data.scope is not None:
+        update_data["scope"] = project_data.scope
+    if project_data.methodology is not None:
+        update_data["methodology"] = project_data.methodology
+    if project_data.compliance_frameworks is not None:
+        update_data["complianceFrameworks"] = project_data.compliance_frameworks
+    if project_data.priority is not None:
+        update_data["priority"] = project_data.priority
     
     updated_project = await db.project.update(
         where={"id": project_id},
@@ -428,12 +470,8 @@ async def update_project(
         include={
             "client": True,
             "lead": True,
-            "_count": {
-                "select": {
-                    "findings": True,
-                    "reports": True,
-                }
-            }
+            "findings": True,
+            "reports": True,
         }
     )
     
@@ -444,14 +482,19 @@ async def update_project(
         status=updated_project.status,
         start_date=updated_project.startDate.isoformat() if updated_project.startDate else None,
         end_date=updated_project.endDate.isoformat() if updated_project.endDate else None,
+        project_type=updated_project.projectType,
+        scope=updated_project.scope,
+        methodology=updated_project.methodology,
+        compliance_frameworks=updated_project.complianceFrameworks,
+        priority=updated_project.priority,
         client_id=updated_project.clientId,
         client_name=updated_project.client.name,
         lead_id=updated_project.leadId,
         lead_name=updated_project.lead.name,
         created_at=updated_project.createdAt.isoformat(),
         updated_at=updated_project.updatedAt.isoformat(),
-        finding_count=updated_project._count.findings,
-        report_count=updated_project._count.reports,
+        finding_count=len(updated_project.findings) if updated_project.findings else 0,
+        report_count=len(updated_project.reports) if updated_project.reports else 0,
     )
 
 
