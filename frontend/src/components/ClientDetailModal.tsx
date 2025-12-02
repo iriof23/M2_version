@@ -3,7 +3,8 @@ import { useAuth } from '@clerk/clerk-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Mail, Phone, Building2, Users, FileText, Activity, Edit, Archive, Download, Loader2, Tag, StickyNote } from 'lucide-react'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Mail, Phone, Building2, Users, FileText, Activity, Edit, Trash2, Loader2, Tag, StickyNote, Globe } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Client {
@@ -39,6 +40,7 @@ interface ClientDetailModalProps {
     open: boolean
     onClose: () => void
     onEdit: (client: Client) => void
+    onDelete?: (client: Client) => void
 }
 
 interface AssociatedProject {
@@ -49,7 +51,7 @@ interface AssociatedProject {
     progress: number
 }
 
-export default function ClientDetailModal({ client, open, onClose, onEdit }: ClientDetailModalProps) {
+export default function ClientDetailModal({ client, open, onClose, onEdit, onDelete }: ClientDetailModalProps) {
     const { getToken } = useAuth()
     const [associatedProjects, setAssociatedProjects] = useState<AssociatedProject[]>([])
     const [loadingProjects, setLoadingProjects] = useState(false)
@@ -190,11 +192,11 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                 <DialogHeader>
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
-                            {client.logoUrl && (
-                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-2xl">
-                                    {client.logoUrl}
-                                </div>
-                            )}
+                            <Avatar className="h-12 w-12 rounded-lg">
+                                <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-semibold text-lg">
+                                    {client.name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
                             <div>
                                 <DialogTitle className="text-xl">{client.name}</DialogTitle>
                                 <p className="text-muted-foreground text-sm mt-0.5">{client.primaryContact}</p>
@@ -216,7 +218,7 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                                 <Mail className="w-4 h-4 text-muted-foreground" />
                                 <div>
                                     <p className="text-xs text-muted-foreground">Email</p>
-                                    <p className="text-sm font-medium">{client.email}</p>
+                                    <p className="text-sm font-medium">{client.email || '—'}</p>
                                 </div>
                             </div>
                             {client.phone && (
@@ -232,16 +234,32 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                                 <Building2 className="w-4 h-4 text-muted-foreground" />
                                 <div>
                                     <p className="text-xs text-muted-foreground">Industry</p>
-                                    <p className="text-sm font-medium">{client.industry}</p>
+                                    <p className="text-sm font-medium">{client.industry || '—'}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-muted-foreground" />
                                 <div>
                                     <p className="text-xs text-muted-foreground">Company Size</p>
-                                    <p className="text-sm font-medium">{client.companySize}</p>
+                                    <p className="text-sm font-medium">{client.companySize || '—'}</p>
                                 </div>
                             </div>
+                            {client.logoUrl && (
+                                <div className="flex items-center gap-2 md:col-span-2">
+                                    <Globe className="w-4 h-4 text-muted-foreground" />
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Website</p>
+                                        <a 
+                                            href={client.logoUrl.startsWith('http') ? client.logoUrl : `https://${client.logoUrl}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm font-medium text-primary hover:underline"
+                                        >
+                                            {client.logoUrl}
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -368,18 +386,19 @@ export default function ClientDetailModal({ client, open, onClose, onEdit }: Cli
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-2 pt-3 border-t border-border">
+                    <div className="flex items-center gap-3 pt-3 border-t border-border">
                         <Button onClick={() => onEdit(client)} className="flex-1" size="sm">
                             <Edit className="w-4 h-4 mr-2" />
                             Edit Client
                         </Button>
-                        <Button variant="outline" className="flex-1" size="sm">
-                            <Download className="w-4 h-4 mr-2" />
-                            Generate Report
-                        </Button>
-                        <Button variant="outline" className="flex-1" size="sm">
-                            <Archive className="w-4 h-4 mr-2" />
-                            Archive
+                        <Button 
+                            variant="outline" 
+                            className="flex-1 text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/30" 
+                            size="sm"
+                            onClick={() => onDelete?.(client)}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Client
                         </Button>
                     </div>
                 </div>

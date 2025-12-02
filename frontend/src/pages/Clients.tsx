@@ -117,15 +117,68 @@ export default function Clients() {
     try {
       const token = await getToken()
       if (token) {
-        const response = await api.get('/clients/', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        // Fetch clients, projects, and findings in parallel
+        const [clientsResponse, projectsResponse] = await Promise.all([
+          api.get('/clients/', { headers: { Authorization: `Bearer ${token}` } }),
+          api.get('/v1/projects/', { headers: { Authorization: `Bearer ${token}` } })
+        ])
         
-        if (response.data && Array.isArray(response.data)) {
-          console.log(`Fetched ${response.data.length} clients from API`)
-          if (response.data.length > 0) {
+        if (clientsResponse.data && Array.isArray(clientsResponse.data)) {
+          console.log(`Fetched ${clientsResponse.data.length} clients from API`)
+          
+          // Build a map of client_id -> project count and project IDs
+          const projectsByClient: Record<string, string[]> = {}
+          if (Array.isArray(projectsResponse.data)) {
+            projectsResponse.data.forEach((p: any) => {
+              if (p.client_id) {
+                if (!projectsByClient[p.client_id]) {
+                  projectsByClient[p.client_id] = []
+                }
+                projectsByClient[p.client_id].push(p.id)
+              }
+            })
+          }
+          
+          // Fetch findings for all projects to get counts by client
+          const findingsByClient: Record<string, { total: number, critical: number, high: number, medium: number, low: number }> = {}
+          
+          // Get all unique project IDs
+          const allProjectIds = Object.values(projectsByClient).flat()
+          
+          // Fetch findings for all projects (batch)
+          for (const projectId of allProjectIds) {
+            try {
+              const findingsResponse = await api.get(`/findings/?project_id=${projectId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              })
+              if (Array.isArray(findingsResponse.data)) {
+                // Find which client this project belongs to
+                const clientId = Object.entries(projectsByClient).find(([, pIds]) => 
+                  pIds.includes(projectId)
+                )?.[0]
+                
+                if (clientId) {
+                  if (!findingsByClient[clientId]) {
+                    findingsByClient[clientId] = { total: 0, critical: 0, high: 0, medium: 0, low: 0 }
+                  }
+                  findingsResponse.data.forEach((f: any) => {
+                    findingsByClient[clientId].total++
+                    const severity = (f.severity || '').toLowerCase()
+                    if (severity === 'critical') findingsByClient[clientId].critical++
+                    else if (severity === 'high') findingsByClient[clientId].high++
+                    else if (severity === 'medium') findingsByClient[clientId].medium++
+                    else if (severity === 'low' || severity === 'info') findingsByClient[clientId].low++
+                  })
+                }
+              }
+            } catch (e) {
+              console.error(`Failed to fetch findings for project ${projectId}:`, e)
+            }
+          }
+          
+          if (clientsResponse.data.length > 0) {
             // Map API data to Client interface
-            const apiClients: Client[] = response.data.map((c: any) => {
+            const apiClients: Client[] = clientsResponse.data.map((c: any) => {
               // Keep the website URL as-is (don't require protocol)
               const websiteUrl = typeof c.website_url === 'string' ? c.website_url.trim() : ''
               
@@ -138,6 +191,8 @@ export default function Clients() {
                   parsedTags = []
                 }
               }
+              
+              const clientFindings = findingsByClient[c.id] || { total: 0, critical: 0, high: 0, medium: 0, low: 0 }
 
               return {
                 id: c.id,
@@ -154,10 +209,15 @@ export default function Clients() {
                 lastActivityDate: c.updated_at ? new Date(c.updated_at) : new Date(),
                 tags: parsedTags,
                 notes: c.notes || '',
-                projectsCount: 0,
+                projectsCount: (projectsByClient[c.id] || []).length,
                 reportsCount: 0,
-                totalFindings: 0,
-                findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+                totalFindings: clientFindings.total,
+                findingsBySeverity: { 
+                  critical: clientFindings.critical, 
+                  high: clientFindings.high, 
+                  medium: clientFindings.medium, 
+                  low: clientFindings.low 
+                },
                 createdAt: c.created_at ? new Date(c.created_at) : new Date(),
                 updatedAt: c.updated_at ? new Date(c.updated_at) : new Date(),
               }
@@ -171,7 +231,7 @@ export default function Clients() {
           }
         } else {
           // Response is not an array
-          console.warn('API response is not an array:', response.data)
+          console.warn('API response is not an array:', clientsResponse.data)
           setClients([])
         }
       } else {
@@ -215,35 +275,38 @@ export default function Clients() {
   }
 
   const handleClientAdded = (newClient: any) => {
-    // Map the API response to our Client interface
-    const logo = typeof newClient.logo_url === 'string' ? newClient.logo_url.trim() : ''
-    const normalizedLogo = logo.startsWith('http://') || logo.startsWith('https://') ? logo : ''
-
+    // Map the client data to our Client interface
+    // newClient comes from AddClientDialog with frontend field names
     const mappedClient: Client = {
       id: newClient.id,
       name: newClient.name,
-      logoUrl: normalizedLogo,
-      status: newClient.status || 'Active',
-      riskLevel: newClient.risk_level || 'Medium',
+      logoUrl: newClient.logoUrl || '',
+      status: newClient.status || 'Prospect',
+      riskLevel: newClient.riskLevel || 'Medium',
       industry: newClient.industry || 'Technology',
-      companySize: newClient.company_size || 'SMB',
-      primaryContact: newClient.contact_name || '',
-      email: newClient.contact_email || '',
-      phone: newClient.contact_phone || '',
+      companySize: newClient.companySize || 'SMB',
+      primaryContact: newClient.primaryContact || newClient.contact_name || '',
+      email: newClient.email || newClient.contact_email || '',
+      phone: newClient.phone || newClient.contact_phone || '',
       lastActivity: 'Just now',
       lastActivityDate: new Date(),
-      tags: [],
-      projectsCount: 0,
-      reportsCount: 0,
-      totalFindings: 0,
-      findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
-      createdAt: new Date(),
+      tags: newClient.tags || [],
+      notes: newClient.notes || '',
+      projectsCount: editingClient?.projectsCount || 0,
+      reportsCount: editingClient?.reportsCount || 0,
+      totalFindings: editingClient?.totalFindings || 0,
+      findingsBySeverity: editingClient?.findingsBySeverity || { critical: 0, high: 0, medium: 0, low: 0 },
+      createdAt: newClient.createdAt || new Date(),
       updatedAt: new Date(),
     }
     
     if (editingClient) {
-      // Update existing client
-      const updatedClients = clients.map(c => c.id === editingClient.id ? { ...c, ...mappedClient } : c)
+      // Update existing client - preserve existing counts
+      const updatedClients = clients.map(c => 
+        c.id === editingClient.id 
+          ? { ...mappedClient, projectsCount: c.projectsCount, reportsCount: c.reportsCount, totalFindings: c.totalFindings, findingsBySeverity: c.findingsBySeverity } 
+          : c
+      )
       setClients(updatedClients)
       setEditingClient(null)
       // Log update activity
@@ -559,31 +622,25 @@ export default function Clients() {
           icon={<Users className="w-6 h-6" />}
           label="Total Clients"
           value={stats.totalClients}
-          trend="+12%"
-          trendUp={true}
           variant="default"
         />
         <StatCard
           icon={<FolderOpen className="w-6 h-6" />}
-          label="Active Engagements"
+          label="Active Projects"
           value={stats.activeProjects}
-          trend="+8%"
-          trendUp={true}
           variant="success"
         />
         <StatCard
           icon={<FileText className="w-6 h-6" />}
           label="Pending Reports"
           value={stats.pendingReports}
-          trend="-5%"
-          trendUp={false}
           variant="warning"
         />
         <StatCard
           icon={<AlertTriangle className="w-6 h-6" />}
-          label="Open Findings"
+          label="Total Findings"
           value={stats.openFindings}
-          badge={stats.criticalFindings}
+          badge={stats.criticalFindings > 0 ? stats.criticalFindings : undefined}
           badgeLabel="Critical"
           variant="destructive"
         />
@@ -841,6 +898,10 @@ export default function Clients() {
         open={!!viewingClient}
         onClose={() => setViewingClient(null)}
         onEdit={handleEditClient}
+        onDelete={(client) => {
+          setViewingClient(null)
+          setDeletingClient(client)
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
