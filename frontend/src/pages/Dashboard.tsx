@@ -676,7 +676,7 @@ const PulseFeed = () => {
                 </Badge>
             </CardHeader>
             <CardContent>
-                <div className="space-y-0.5 max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                <div className="space-y-0.5 max-h-[320px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
                     {activityLog.slice(0, 10).map((event) => (
                         <div
                             key={event.id}
@@ -988,14 +988,8 @@ export default function Dashboard() {
                 />
                 <DeadlineList projects={data.upcomingProjects} />
 
-                {/* Row 2: Quick Stats & Actions */}
+                {/* Row 2: Quick Stats */}
                 <QuickStats stats={data.stats} />
-                <QuickActions 
-                    onNewFinding={handleNewFinding}
-                    onNewClient={handleNewClient}
-                    onNewReport={handleNewReport}
-                    onSearch={handleSearch}
-                />
 
                 {/* Row 3: Activity Log (Mission Pulse) */}
                 <PulseFeed />
