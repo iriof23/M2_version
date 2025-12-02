@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Search, FileText, X, Trash2, Shield, Upload } from 'lucide-react'
+import { Plus, Search, FileText, X, Trash2, Shield, Upload, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,9 @@ import { EditFindingModal } from './EditFindingModal'
 import { StatCard } from './StatCard'
 import { useParams } from 'react-router-dom'
 import { logFindingAdded, logFindingUpdated, logFindingDeleted } from '@/lib/activityLog'
+import { api } from '@/lib/api'
+import { useAuth } from '@clerk/clerk-react'
+import { useToast } from '@/components/ui/use-toast'
 
 interface ProjectFinding {
     id: string
@@ -38,163 +41,281 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
     const { projectId: urlProjectId } = useParams()
     // Use prop projectId if provided, otherwise fall back to URL param
     const projectId = propProjectId || urlProjectId
+    const { getToken } = useAuth()
+    const { toast } = useToast()
     const [findings, setFindings] = useState<ProjectFinding[]>([])
     const [selectedFinding, setSelectedFinding] = useState<ProjectFinding | null>(null)
     const [showAddModal, setShowAddModal] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedVulns, setSelectedVulns] = useState<Vulnerability[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
-    // Load findings from localStorage on mount
-    useEffect(() => {
-        if (projectId) {
-            const storageKey = `findings_${projectId}`
-            const stored = localStorage.getItem(storageKey)
-            if (stored) {
-                try {
-                    const loadedFindings = JSON.parse(stored)
-                    setFindings(loadedFindings)
-                } catch (e) {
-                    console.error('Failed to load findings:', e)
-                }
-            }
-        }
-    }, [projectId])
-
-    // Save findings to localStorage whenever they change
-    useEffect(() => {
-        if (projectId && findings.length > 0) {
-            const storageKey = `findings_${projectId}`
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(findings))
-            } catch (e) {
-                console.error('Failed to save findings to localStorage:', e)
-                // If quota exceeded, notify user
-                if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-                    alert('Storage limit reached! Unable to save images. Please delete some findings or use smaller images.')
-                }
-            }
-        }
-    }, [findings, projectId])
-
-    // Add finding from library
-    const handleAddFinding = (vuln: Vulnerability) => {
-        const newFinding: ProjectFinding = {
-            id: `finding-${Date.now()}`,
-            owaspId: vuln.id,
-            title: vuln.title,
-            severity: vuln.severity === 'Info' ? 'Informational' : vuln.severity,
-            cvssVector: vuln.cvss_vector,
-            status: 'Open',
-            description: vuln.description,
-            recommendations: vuln.recommendation,
+    // Helper function to map API FindingResponse to ProjectFinding
+    const mapApiFindingToProjectFinding = (apiFinding: any): ProjectFinding => {
+        return {
+            id: apiFinding.id,
+            owaspId: apiFinding.cve_id || '',
+            title: apiFinding.title,
+            severity: apiFinding.severity as ProjectFinding['severity'],
+            cvssScore: apiFinding.cvss_score || undefined,
+            cvssVector: apiFinding.cvss_vector || undefined,
+            status: (apiFinding.status === 'OPEN' ? 'Open' : 
+                    apiFinding.status === 'IN_PROGRESS' ? 'In Progress' : 
+                    apiFinding.status === 'FIXED' ? 'Fixed' : 
+                    apiFinding.status === 'ACCEPTED_RISK' ? 'Accepted Risk' : 'Open') as ProjectFinding['status'],
+            description: apiFinding.description || '',
+            recommendations: apiFinding.remediation || '',
+            evidence: apiFinding.affected_systems || undefined,
             affectedAssets: [],
             screenshots: []
         }
-        const updatedFindings = [...findings, newFinding]
-        setFindings(updatedFindings)
-        setShowAddModal(false)
-        
-        // Log activity
-        const projectName = localStorage.getItem(`project_name_${projectId}`) || 'Project'
-        logFindingAdded(vuln.title, vuln.severity === 'Info' ? 'Informational' : vuln.severity, projectName, newFinding.id)
-        
-        onUpdate()
+    }
+
+    // Load findings from API on mount
+    useEffect(() => {
+        const fetchFindings = async () => {
+            if (!projectId) return
+            
+            setIsLoading(true)
+            try {
+                const token = await getToken()
+                if (!token) {
+                    console.error('No auth token available')
+                    return
+                }
+
+                const response = await api.get(`/findings?project_id=${projectId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+
+                if (response.data && Array.isArray(response.data)) {
+                    const mappedFindings = response.data.map(mapApiFindingToProjectFinding)
+                    setFindings(mappedFindings)
+                }
+            } catch (error) {
+                console.error('Failed to fetch findings:', error)
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load findings. Please try again.',
+                    variant: 'destructive',
+                })
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchFindings()
+    }, [projectId, getToken, toast])
+
+    // Add finding from library
+    const handleAddFinding = async (vuln: Vulnerability) => {
+        if (!projectId) return
+
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast({
+                    title: 'Error',
+                    description: 'Authentication required',
+                    variant: 'destructive',
+                })
+                return
+            }
+
+            const payload = {
+                title: vuln.title,
+                description: vuln.description || '',
+                severity: vuln.severity === 'Info' ? 'Informational' : vuln.severity,
+                project_id: projectId,
+                cvss_vector: vuln.cvss_vector || undefined,
+                remediation: vuln.recommendation || '',
+            }
+
+            const response = await api.post('/findings', payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            const newFinding = mapApiFindingToProjectFinding(response.data)
+            setFindings([...findings, newFinding])
+            setShowAddModal(false)
+            
+            // Log activity
+            logFindingAdded(vuln.title, vuln.severity === 'Info' ? 'Informational' : vuln.severity, response.data.project_name || 'Project', newFinding.id)
+            
+            toast({
+                title: 'Finding Added',
+                description: `${vuln.title} has been added successfully.`,
+            })
+            
+            onUpdate()
+        } catch (error: any) {
+            console.error('Failed to create finding:', error)
+            toast({
+                title: 'Error',
+                description: error.response?.data?.detail || 'Failed to add finding. Please try again.',
+                variant: 'destructive',
+            })
+        }
     }
 
     // Bulk add findings from library
-    const handleBulkAddFindings = () => {
-        const newFindings: ProjectFinding[] = selectedVulns.map((vuln, index) => ({
-            id: `finding-${Date.now()}-${index}`,
-            owaspId: vuln.id,
-            title: vuln.title,
-            severity: vuln.severity === 'Info' ? 'Informational' : vuln.severity,
-            cvssVector: vuln.cvss_vector,
-            status: 'Open',
-            description: vuln.description,
-            recommendations: vuln.recommendation,
-            affectedAssets: [],
-            screenshots: []
-        }))
+    const handleBulkAddFindings = async () => {
+        if (!projectId) return
 
-        const updatedFindings = [...findings, ...newFindings]
-        setFindings(updatedFindings)
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast({
+                    title: 'Error',
+                    description: 'Authentication required',
+                    variant: 'destructive',
+                })
+                return
+            }
 
-        // Reset modal state
-        setShowAddModal(false)
-        setSelectedVulns([])
-        setSearchQuery('')
+            // Create all findings in parallel
+            const createPromises = selectedVulns.map(vuln => 
+                api.post('/findings', {
+                    title: vuln.title,
+                    description: vuln.description || '',
+                    severity: vuln.severity === 'Info' ? 'Informational' : vuln.severity,
+                    project_id: projectId,
+                    cvss_vector: vuln.cvss_vector || undefined,
+                    remediation: vuln.recommendation || '',
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            )
 
-        // Log activity for each finding
-        const projectName = localStorage.getItem(`project_name_${projectId}`) || 'Project'
-        newFindings.forEach(finding => {
-            logFindingAdded(finding.title, finding.severity, projectName, finding.id)
-        })
+            const responses = await Promise.all(createPromises)
+            const newFindings = responses.map(res => mapApiFindingToProjectFinding(res.data))
+            
+            setFindings([...findings, ...newFindings])
 
-        // Show success notification
-        const notification = document.createElement('div')
-        notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 font-medium'
-        notification.textContent = `✓ Added ${newFindings.length} finding${newFindings.length !== 1 ? 's' : ''} successfully!`
-        document.body.appendChild(notification)
+            // Reset modal state
+            setShowAddModal(false)
+            setSelectedVulns([])
+            setSearchQuery('')
 
-        setTimeout(() => {
-            notification.style.opacity = '0'
-            notification.style.transition = 'opacity 300ms'
-            setTimeout(() => notification.remove(), 300)
-        }, 3000)
+            // Log activity for each finding
+            newFindings.forEach((finding, index) => {
+                const vuln = selectedVulns[index]
+                logFindingAdded(vuln.title, vuln.severity === 'Info' ? 'Informational' : vuln.severity, responses[index].data.project_name || 'Project', finding.id)
+            })
 
-        onUpdate()
+            toast({
+                title: 'Findings Added',
+                description: `Successfully added ${newFindings.length} finding${newFindings.length !== 1 ? 's' : ''}.`,
+            })
+
+            onUpdate()
+        } catch (error: any) {
+            console.error('Failed to create findings:', error)
+            toast({
+                title: 'Error',
+                description: error.response?.data?.detail || 'Failed to add findings. Please try again.',
+                variant: 'destructive',
+            })
+        }
     }
 
     // Update finding
-    const handleUpdateFinding = (updated: ProjectFinding) => {
-        const updatedFindings = findings.map(f => f.id === updated.id ? updated : f)
-        setFindings(updatedFindings)
-        setSelectedFinding(updated)
-        onUpdate()
+    const handleUpdateFinding = async (updated: ProjectFinding) => {
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast({
+                    title: 'Error',
+                    description: 'Authentication required',
+                    variant: 'destructive',
+                })
+                return
+            }
+
+            const payload = {
+                title: updated.title,
+                description: updated.description,
+                severity: updated.severity,
+                cvss_vector: updated.cvssVector,
+                remediation: updated.recommendations,
+                status: updated.status === 'Open' ? 'OPEN' :
+                       updated.status === 'In Progress' ? 'IN_PROGRESS' :
+                       updated.status === 'Fixed' ? 'FIXED' :
+                       updated.status === 'Accepted Risk' ? 'ACCEPTED_RISK' : 'OPEN',
+            }
+
+            const response = await api.put(`/findings/${updated.id}`, payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            const updatedFinding = mapApiFindingToProjectFinding(response.data)
+            const updatedFindings = findings.map(f => f.id === updated.id ? updatedFinding : f)
+            setFindings(updatedFindings)
+            setSelectedFinding(updatedFinding)
+            
+            toast({
+                title: 'Finding Updated',
+                description: `${updated.title} has been updated successfully.`,
+            })
+            
+            onUpdate()
+        } catch (error: any) {
+            console.error('Failed to update finding:', error)
+            toast({
+                title: 'Error',
+                description: error.response?.data?.detail || 'Failed to update finding. Please try again.',
+                variant: 'destructive',
+            })
+        }
     }
 
-    // Save changes
-    const handleSaveChanges = () => {
-        // Persist to localStorage (already done via useEffect)
-        const notification = document.createElement('div')
-        notification.className = 'fixed top-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg z-50 text-sm font-medium flex items-center gap-2'
-        notification.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Changes saved successfully</span>'
-        document.body.appendChild(notification)
-
-        setTimeout(() => {
-            notification.style.opacity = '0'
-            notification.style.transition = 'opacity 300ms'
-            setTimeout(() => notification.remove(), 300)
-        }, 3000)
-
-        onUpdate()
-    }
 
     // Delete finding
-    const handleDeleteFinding = () => {
+    const handleDeleteFinding = async () => {
         if (!selectedFinding) return
 
-        // Log activity
-        const projectName = localStorage.getItem(`project_name_${projectId}`) || 'Project'
-        logFindingDeleted(selectedFinding.title, projectName, selectedFinding.id)
-
-        const updatedFindings = findings.filter(f => f.id !== selectedFinding.id)
-        setFindings(updatedFindings)
-        setSelectedFinding(null)
-        setShowDeleteDialog(false)
-
-        // Update localStorage
-        if (projectId) {
-            const storageKey = `findings_${projectId}`
-            if (updatedFindings.length > 0) {
-                localStorage.setItem(storageKey, JSON.stringify(updatedFindings))
-            } else {
-                localStorage.removeItem(storageKey)
+        setIsDeleting(true)
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast({
+                    title: 'Error',
+                    description: 'Authentication required',
+                    variant: 'destructive',
+                })
+                return
             }
-        }
 
-        onUpdate()
+            await api.delete(`/findings/${selectedFinding.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            // Log activity
+            logFindingDeleted(selectedFinding.title, 'Project', selectedFinding.id)
+
+            const updatedFindings = findings.filter(f => f.id !== selectedFinding.id)
+            setFindings(updatedFindings)
+            setSelectedFinding(null)
+            setShowDeleteDialog(false)
+
+            toast({
+                title: 'Finding Deleted',
+                description: `${selectedFinding.title} has been permanently removed.`,
+            })
+
+            onUpdate()
+        } catch (error: any) {
+            console.error('Failed to delete finding:', error)
+            toast({
+                title: 'Error',
+                description: error.response?.data?.detail || 'Failed to delete finding. Please try again.',
+                variant: 'destructive',
+            })
+        } finally {
+            setIsDeleting(false)
+        }
     }
 
 
@@ -289,7 +410,12 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
                 {/* 3. Findings List or Premium Empty State */}
                 <ScrollArea className="h-[calc(100vh-400px)] min-h-[400px]">
                     <div className="space-y-3 pr-2 pb-20">
-                        {findings.length === 0 ? (
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-96">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                <span className="ml-3 text-muted-foreground">Loading findings...</span>
+                            </div>
+                        ) : findings.length === 0 ? (
                             <div className="h-96 rounded-lg border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center relative overflow-hidden">
                                 {/* Subtle Background Pattern */}
                                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
@@ -570,9 +696,19 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
                         <Button
                             variant="destructive"
                             onClick={handleDeleteFinding}
+                            disabled={isDeleting}
                         >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Finding
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete Finding
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

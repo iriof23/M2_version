@@ -110,64 +110,63 @@ export default function ReportEditor() {
         fetchReport()
     }, [reportId, getToken, navigate, toast])
 
-    // Function to calculate findings count from localStorage
-    const calculateFindingsCount = () => {
-        const projectIdForFindings = reportData?.project_id || reportId
-        if (projectIdForFindings) {
-            const storageKey = `findings_${projectIdForFindings}`
-            const stored = localStorage.getItem(storageKey)
-            if (stored) {
-                try {
-                    const findings = JSON.parse(stored)
-                    // Calculate total from all findings (sum of all severities)
-                    const total = findings.length
-                    setActualFindingsCount(total)
-                } catch (e) {
-                    setActualFindingsCount(0)
-                }
+    // Function to fetch findings count from API
+    const fetchFindingsCount = async () => {
+        const projectIdForFindings = reportData?.project_id
+        if (!projectIdForFindings) {
+            setActualFindingsCount(0)
+            return
+        }
+
+        try {
+            const token = await getToken()
+            if (!token) {
+                setActualFindingsCount(0)
+                return
+            }
+
+            const response = await api.get(`/findings?project_id=${projectIdForFindings}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (response.data && Array.isArray(response.data)) {
+                setActualFindingsCount(response.data.length)
             } else {
                 setActualFindingsCount(0)
             }
+        } catch (error) {
+            console.error('Failed to fetch findings count:', error)
+            setActualFindingsCount(0)
         }
     }
 
-    // Load actual findings count from localStorage
+    // Load actual findings count from API
     useEffect(() => {
-        calculateFindingsCount()
-        
-        const projectIdForFindings = reportData?.project_id || reportId
-        
-        // Listen for storage changes to update count when findings are added/removed
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === `findings_${projectIdForFindings}`) {
-                calculateFindingsCount()
-            }
+        if (reportData?.project_id) {
+            fetchFindingsCount()
+            
+            // Refresh count periodically (every 5 seconds) to catch updates
+            const interval = setInterval(() => {
+                fetchFindingsCount()
+            }, 5000)
+
+            return () => clearInterval(interval)
+        } else {
+            setActualFindingsCount(0)
         }
-        
-        window.addEventListener('storage', handleStorageChange)
-        
-        // Also check periodically (for same-tab updates)
-        const interval = setInterval(() => {
-            calculateFindingsCount()
-        }, 1000) // Check every second
-        
-        return () => {
-            window.removeEventListener('storage', handleStorageChange)
-            clearInterval(interval)
-        }
-    }, [reportId, reportData?.project_id])
+    }, [reportData?.project_id, getToken])
     
     // Handler to update findings count when FindingsTabContent updates
     const handleFindingsUpdate = () => {
-        calculateFindingsCount()
+        fetchFindingsCount()
     }
     
     // Recalculate count when switching to findings tab
     useEffect(() => {
         if (activeTab === 'findings') {
-            calculateFindingsCount()
+            fetchFindingsCount()
         }
-    }, [activeTab, reportId, reportData?.project_id])
+    }, [activeTab])
 
     // Report settings state - initialize from report data when available
     const [reportSettings, setReportSettings] = useState({
