@@ -1,0 +1,101 @@
+/* PREMIUM PRINT RESET */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+:root {
+    --primary: {{ client.primary_color | default('#10b981') }};
+    --text-dark: #1e293b;
+    --text-light: #64748b;
+    --bg-accent: #f8fafc;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-dark);
+    margin: 0;
+    -webkit-print-color-adjust: exact; /* CRITICAL: Prints background colors */
+    print-color-adjust: exact;
+}
+
+/* 1. THE GLOSSY COVER PAGE */
+
+.cover-page {
+    height: 100vh; /* Full Height */
+    width: 100%;
+    background: linear-gradient(135deg, #09090b 0%, #18181b 100%); /* Premium Dark Theme */
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    page-break-after: always;
+}
+
+.cover-logo {
+    max-width: 250px;
+    margin-bottom: 40px;
+}
+
+.cover-title {
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    text-align: center;
+    margin: 0;
+}
+
+.cover-meta {
+    margin-top: 60px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    text-align: left;
+}
+
+/* 2. FINDING CARDS (No more boring text blocks) */
+
+.finding-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    overflow: hidden;
+    page-break-inside: avoid; /* Don't cut findings in half */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.finding-header {
+    background: var(--bg-accent);
+    padding: 15px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.severity-badge {
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.severity-critical { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.severity-high { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+
+.finding-body {
+    padding: 20px;
+}
+
+/* 3. FIXING THE HTML LEAKS */
+
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+

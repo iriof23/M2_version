@@ -28,6 +28,7 @@ interface ProjectFinding {
     description: string
     recommendations: string
     evidence?: string
+    references?: string
     affectedAssets: Array<{ url: string; description: string; instanceCount: number }>
     screenshots: Array<{ id: string; url: string; caption: string }>
 }
@@ -67,6 +68,16 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
             return severityMap[sev?.toUpperCase()] || 'Medium'
         }
         
+        // Parse affected assets from JSON
+        let affectedAssets: ProjectFinding['affectedAssets'] = []
+        if (apiFinding.affected_assets_json) {
+            try {
+                affectedAssets = JSON.parse(apiFinding.affected_assets_json)
+            } catch (e) {
+                console.error('Failed to parse affected_assets_json:', e)
+            }
+        }
+        
         return {
             id: apiFinding.id,
             owaspId: apiFinding.cve_id || '',
@@ -80,8 +91,9 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
                     apiFinding.status === 'ACCEPTED_RISK' ? 'Accepted Risk' : 'Open') as ProjectFinding['status'],
             description: apiFinding.description || '',
             recommendations: apiFinding.remediation || '',
-            evidence: apiFinding.affected_systems || undefined,
-            affectedAssets: [],
+            evidence: apiFinding.evidence || undefined,  // PoC/Evidence content
+            references: apiFinding.references || undefined,
+            affectedAssets: affectedAssets,
             screenshots: []
         }
     }
@@ -247,17 +259,26 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
                 return
             }
 
+            // Map all frontend fields to API fields
             const payload = {
                 title: updated.title,
                 description: updated.description,
                 severity: updated.severity,
-                cvss_vector: updated.cvssVector,
+                cvss_score: updated.cvssScore || null,
+                cvss_vector: updated.cvssVector || null,
+                cve_id: updated.owaspId || null,
+                affected_assets_json: JSON.stringify(updated.affectedAssets || []),  // Serialize array to JSON
+                affected_assets_count: updated.affectedAssets?.length || 0,
+                evidence: updated.evidence || null,  // PoC/Evidence rich text content
                 remediation: updated.recommendations,
+                references: updated.references || null,
                 status: updated.status === 'Open' ? 'OPEN' :
                        updated.status === 'In Progress' ? 'IN_PROGRESS' :
                        updated.status === 'Fixed' ? 'FIXED' :
                        updated.status === 'Accepted Risk' ? 'ACCEPTED_RISK' : 'OPEN',
             }
+
+            console.log('Updating finding with payload:', payload)
 
             const response = await api.put(`/findings/${updated.id}`, payload, {
                 headers: { Authorization: `Bearer ${token}` }

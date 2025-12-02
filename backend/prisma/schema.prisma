@@ -225,6 +225,8 @@ model Finding {
 
   affectedSystems     String?
   affectedAssetsCount Int     @default(0) // Count of affected assets
+  affectedAssetsJson  String? // JSON array of affected assets [{url, description, instanceCount}]
+  evidence            String? // Rich text content for PoC/Evidence
   remediation         String? // Rich text content
   references          String? // JSON array of URLs
 

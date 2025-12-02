@@ -2,13 +2,19 @@
 Report management and generation routes
 """
 import logging
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from fastapi.responses import FileResponse
+import tempfile
+from typing import Optional, Literal
+from datetime import datetime
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.routes.auth import get_current_user
 from app.db import db
+from app.services.report_data_service import ReportDataService
+from app.services.pdf_service import pdf_service
+from app.services.docx_service import docx_service
 
 logger = logging.getLogger(__name__)
 
@@ -481,6 +487,172 @@ async def download_report(
     # return FileResponse(report.pdfPath, media_type="application/pdf", filename=f"{report.title}.pdf")
     
     return {"message": "Download endpoint - implementation pending"}
+
+
+@router.get("/{report_id}/export")
+async def export_report(
+    report_id: str,
+    format: Literal["pdf", "docx"] = Query(default="pdf", description="Export format: pdf or docx"),
+    current_user = Depends(get_current_user)
+):
+    """
+    Export report as PDF or DOCX
+    
+    This endpoint generates a professional report document using the configured templates.
+    
+    - **pdf**: Generates a glossy, print-ready PDF using Playwright rendering
+    - **docx**: Generates an editable Word document using docxtpl
+    
+    The generated file is returned directly as a download.
+    """
+    logger.info(f"Exporting report {report_id} as {format} for user {current_user.id}")
+    
+    # Verify report exists and user has access
+    report = await db.report.find_unique(
+        where={"id": report_id},
+        include={
+            "project": {"include": {"client": True}},
+            "generatedBy": True,
+        }
+    )
+    
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+    
+    # Check organization access
+    if current_user.organizationId and report.project.client.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    try:
+        # Build the context using ReportDataService
+        logger.info(f"Building context for report {report_id}")
+        context = await ReportDataService.build_context(report_id)
+        context_dict = ReportDataService.context_to_dict(context)
+        
+        # Generate a safe filename
+        safe_title = "".join(c for c in report.title if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_title = safe_title.replace(' ', '_')[:50]  # Limit length
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if format == "pdf":
+            # Generate PDF using PDFService
+            logger.info(f"Generating PDF for report {report_id}")
+            pdf_bytes = await pdf_service.generate(context_dict)
+            
+            filename = f"{safe_title}_{timestamp}.pdf"
+            
+            # Update report with generation info
+            await db.report.update(
+                where={"id": report_id},
+                data={
+                    "status": "COMPLETED",
+                    "generatedAt": datetime.now(),
+                }
+            )
+            
+            logger.info(f"PDF generated successfully: {len(pdf_bytes)} bytes")
+            
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "Content-Length": str(len(pdf_bytes)),
+                }
+            )
+        
+        elif format == "docx":
+            # Generate DOCX using DOCXService
+            logger.info(f"Generating DOCX for report {report_id}")
+            docx_bytes = await docx_service.generate_docx_from_context(context_dict)
+            
+            filename = f"{safe_title}_{timestamp}.docx"
+            
+            logger.info(f"DOCX generated successfully: {len(docx_bytes)} bytes")
+            
+            return Response(
+                content=docx_bytes,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "Content-Length": str(len(docx_bytes)),
+                }
+            )
+        
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported format: {format}. Use 'pdf' or 'docx'"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to export report {report_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate report: {str(e)}"
+        )
+
+
+@router.post("/{report_id}/export/async")
+async def export_report_async(
+    report_id: str,
+    format: Literal["pdf", "docx"] = Query(default="pdf", description="Export format: pdf or docx"),
+    background_tasks: BackgroundTasks = None,
+    current_user = Depends(get_current_user)
+):
+    """
+    Start async report export
+    
+    For large reports, this endpoint starts the export in the background
+    and returns immediately. Poll the report status to check completion.
+    
+    Once complete, use /download to get the generated file.
+    """
+    logger.info(f"Starting async export of report {report_id} as {format}")
+    
+    # Verify report exists and user has access
+    report = await db.report.find_unique(
+        where={"id": report_id},
+        include={"project": {"include": {"client": True}}}
+    )
+    
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+    
+    # Check organization access
+    if current_user.organizationId and report.project.client.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    # Update status to generating
+    await db.report.update(
+        where={"id": report_id},
+        data={"status": "GENERATING"}
+    )
+    
+    # TODO: Add background task for actual generation
+    # This would require a Celery task or similar
+    # background_tasks.add_task(generate_report_file, report_id, format)
+    
+    return {
+        "message": f"Report export started in background",
+        "report_id": report_id,
+        "format": format,
+        "status": "GENERATING"
+    }
 
 
 @router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)

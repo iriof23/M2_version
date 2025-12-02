@@ -400,8 +400,8 @@ export default function ReportEditor() {
                 {activeTab === 'preview' && (
                     <PreviewTab settings={reportSettings} project={project} />
                 )}
-                {activeTab === 'export' && (
-                    <ExportTab />
+                {activeTab === 'export' && reportId && (
+                    <ExportTab reportId={reportId} />
                 )}
             </div>
         </div >
@@ -777,67 +777,144 @@ function PreviewTab({ settings, project }: { settings: any; project: any }) {
 }
 
 // Export Tab Component
-function ExportTab() {
-    const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'html'>('pdf')
+function ExportTab({ reportId }: { reportId: string }) {
+    const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf')
     const [isExporting, setIsExporting] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const { getToken } = useAuth()
+    const { toast } = useToast()
 
-    const handleExport = () => {
+    const handleExport = async () => {
         setIsExporting(true)
-        // TODO: Implement actual export
-        setTimeout(() => {
+        setError(null)
+        
+        try {
+            const token = await getToken()
+            if (!token) {
+                throw new Error('Authentication required')
+            }
+
+            // Call the export API
+            const response = await fetch(
+                `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/reports/${reportId}/export?format=${exportFormat}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            )
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.detail || `Export failed: ${response.statusText}`)
+            }
+
+            // Get the filename from the Content-Disposition header
+            const contentDisposition = response.headers.get('Content-Disposition')
+            let filename = `report.${exportFormat}`
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="(.+)"/)
+                if (match) {
+                    filename = match[1]
+                }
+            }
+
+            // Download the file
+            const blob = await response.blob()
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = filename
+            document.body.appendChild(a)
+            a.click()
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+
+            toast({
+                title: 'Export Successful',
+                description: `Your report has been exported as ${exportFormat.toUpperCase()}.`,
+            })
+        } catch (err: any) {
+            console.error('Export failed:', err)
+            setError(err.message || 'Failed to export report')
+            toast({
+                title: 'Export Failed',
+                description: err.message || 'Failed to export report. Please try again.',
+                variant: 'destructive',
+            })
+        } finally {
             setIsExporting(false)
-            alert(`Exported as ${exportFormat.toUpperCase()}`)
-        }, 2000)
+        }
     }
 
     return (
         <div className="max-w-2xl mx-auto">
-            <Card>
+            <Card className="bg-zinc-900 border-zinc-800">
                 <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <h3 className="text-lg font-semibold text-white mb-4">
                         Export Report
                     </h3>
 
                     {/* Format Selection */}
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        <label className="block text-sm font-medium text-zinc-300 mb-3">
                             Export Format
                         </label>
-                        <div className="grid grid-cols-3 gap-3">
-                            {(['pdf', 'docx', 'html'] as const).map((format) => (
+                        <div className="grid grid-cols-2 gap-3">
+                            {(['pdf', 'docx'] as const).map((format) => (
                                 <button
                                     key={format}
                                     onClick={() => setExportFormat(format)}
                                     className={cn(
                                         'p-4 border-2 rounded-lg text-center transition-all',
                                         exportFormat === format
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                                            : 'border-zinc-700 hover:border-zinc-600 text-zinc-300'
                                     )}
                                 >
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase">
+                                    <p className="text-sm font-semibold uppercase">
                                         {format}
+                                    </p>
+                                    <p className="text-xs text-zinc-500 mt-1">
+                                        {format === 'pdf' ? 'Print-ready document' : 'Editable document'}
                                     </p>
                                 </button>
                             ))}
                         </div>
                     </div>
 
+                    {/* Error Message */}
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <p className="text-sm text-red-400">{error}</p>
+                        </div>
+                    )}
+
                     {/* Export Button */}
                     <Button
                         onClick={handleExport}
                         disabled={isExporting}
-                        className="w-full"
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
                         size="lg"
                     >
-                        <Download className="w-4 h-4 mr-2" />
-                        {isExporting ? 'Exporting...' : `Export as ${exportFormat.toUpperCase()}`}
+                        {isExporting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Generating {exportFormat.toUpperCase()}...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="w-4 h-4 mr-2" />
+                                Export as {exportFormat.toUpperCase()}
+                            </>
+                        )}
                     </Button>
 
                     {/* Export Info */}
-                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-sm text-blue-900 dark:text-blue-100">
-                            <strong>Note:</strong> Your report will include all findings, narrative sections, and client branding.
+                    <div className="mt-6 p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+                        <p className="text-sm text-zinc-400">
+                            <strong className="text-zinc-300">Note:</strong> Your report will include all findings, narrative sections, and client branding.
                         </p>
                     </div>
                 </CardContent>
