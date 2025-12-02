@@ -5,7 +5,6 @@ import Link from '@tiptap/extension-link';
 import DropCursor from '@tiptap/extension-dropcursor';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { EditorBubbleMenu } from './EditorBubbleMenu';
 import { EditorToolbar } from './EditorToolbar';
 import { ResizableImage } from './ResizableImage';
 import { Upload } from 'lucide-react';
@@ -333,7 +332,6 @@ export const Editor = ({
                 onChange={handleFileInputChange}
             />
             {editable && <EditorToolbar editor={editor} />}
-            {editable && <EditorBubbleMenu editor={editor} />}
             <div className="p-4">
                 <EditorContent editor={editor} />
             </div>
