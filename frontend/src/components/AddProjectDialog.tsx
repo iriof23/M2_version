@@ -58,6 +58,29 @@ interface AddProjectDialogProps {
     editingProject?: any // Project to edit (if provided, dialog is in edit mode)
 }
 
+const parseScopeField = (rawScope: any): string[] => {
+    if (!rawScope) return []
+    if (Array.isArray(rawScope)) return rawScope.filter(Boolean)
+    
+    if (typeof rawScope === 'string') {
+        try {
+            const parsed = JSON.parse(rawScope)
+            if (Array.isArray(parsed)) {
+                return parsed.filter(Boolean)
+            }
+        } catch {
+            return rawScope
+                .split(/[\n,]+/)
+                .map(item => item.trim())
+                .filter(Boolean)
+        }
+        
+        return rawScope ? [rawScope].filter(Boolean) : []
+    }
+    
+    return []
+}
+
 export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, editingProject }: AddProjectDialogProps) {
     const { getToken } = useAuth()
     const { toast } = useToast()
@@ -94,16 +117,7 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
     useEffect(() => {
         if (editingProject) {
             // Parse JSON strings for scope and complianceFrameworks from API
-            let parsedScope: string[] = []
-            if (editingProject.scope) {
-                try {
-                    parsedScope = typeof editingProject.scope === 'string' 
-                        ? JSON.parse(editingProject.scope) 
-                        : editingProject.scope
-                } catch {
-                    parsedScope = []
-                }
-            }
+            const parsedScope = parseScopeField(editingProject.scope)
             
             let parsedComplianceFrameworks: string[] = []
             if (editingProject.complianceFrameworks || editingProject.compliance_frameworks) {

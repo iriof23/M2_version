@@ -208,6 +208,31 @@ export default function Projects() {
         fetchClients()
     }, [addProjectDialogOpen, getToken])
 
+    const parseScopeField = (rawScope: any): string[] => {
+        if (!rawScope) return []
+        if (Array.isArray(rawScope)) return rawScope.filter(Boolean)
+        
+        if (typeof rawScope === 'string') {
+            try {
+                const parsed = JSON.parse(rawScope)
+                if (Array.isArray(parsed)) {
+                    return parsed.filter(Boolean)
+                }
+            } catch {
+                // legacy format: plain string or comma/newline-separated values
+                return rawScope
+                    .split(/[\n,]+/)
+                    .map(item => item.trim())
+                    .filter(Boolean)
+            }
+            
+            // If JSON.parse succeeded but result wasn't an array, fall through
+            return rawScope ? [rawScope].filter(Boolean) : []
+        }
+        
+        return []
+    }
+    
     // Fetch real projects from API on page load
     useEffect(() => {
         const fetchProjects = async () => {
@@ -231,12 +256,7 @@ export default function Projects() {
                     // Map API response to frontend Project format
                     const apiProjects: Project[] = response.data.map((p: any) => {
                         // Parse JSON strings for scope and complianceFrameworks
-                        let parsedScope: string[] = []
-                        if (p.scope) {
-                            try {
-                                parsedScope = typeof p.scope === 'string' ? JSON.parse(p.scope) : p.scope
-                            } catch { parsedScope = [] }
-                        }
+                        const parsedScope = parseScopeField(p.scope)
                         
                         let parsedComplianceFrameworks: string[] = []
                         if (p.compliance_frameworks) {
