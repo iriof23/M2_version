@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Search, FileText, AlertTriangle, Clock, Calendar, Target, ChevronRight, Download, Share2, Edit, ArrowUpRight, Users, Shield, Trash2, Loader2 } from 'lucide-react'
+import { Search, FileText, AlertTriangle, Clock, Calendar, Target, ChevronRight, Download, Edit, ArrowUpRight, Users, Shield, Trash2, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -441,9 +441,6 @@ export default function ReportBuilder() {
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-3 overflow-hidden">
-                                            <div className="text-2xl flex-shrink-0 bg-zinc-900/50 w-10 h-10 flex items-center justify-center rounded-md border border-zinc-800">
-                                                {project.clientLogoUrl}
-                                            </div>
                                             <div className="min-w-0">
                                                 <h3 className={cn("font-medium text-sm truncate", isActive ? "text-zinc-100" : "text-zinc-300 group-hover:text-zinc-100")}>
                                                     {project.name}
@@ -484,10 +481,6 @@ export default function ReportBuilder() {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 h-9">
-                                        <Share2 className="w-4 h-4 mr-2" />
-                                        Share
-                                    </Button>
                                     <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 h-9">
                                         <Download className="w-4 h-4 mr-2" />
                                         Export
