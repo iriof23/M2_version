@@ -198,30 +198,46 @@ export default function ReportBuilder() {
         }
     }
 
-    // Load actual findings counts from localStorage
+    // Load actual findings counts from API
     useEffect(() => {
-        const data: Record<string, any> = {}
-        projects.forEach(project => {
-            const storageKey = `findings_${project.id}`
-            const stored = localStorage.getItem(storageKey)
-            if (stored) {
+        const fetchFindingsCounts = async () => {
+            const token = await getToken()
+            if (!token || projects.length === 0) return
+            
+            const data: Record<string, any> = {}
+            
+            // Fetch findings for each project in parallel
+            await Promise.all(projects.map(async (project) => {
                 try {
-                    const findings = JSON.parse(stored)
-                    const breakdown = { critical: 0, high: 0, medium: 0, low: 0 }
-                    findings.forEach((f: any) => {
-                        const s = f.severity.toLowerCase() as keyof typeof breakdown
-                        if (breakdown[s] !== undefined) breakdown[s]++
+                    const response = await api.get(`/findings/?project_id=${project.id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
                     })
-                    data[project.id] = { count: findings.length, severity: breakdown }
+                    
+                    if (response.data && Array.isArray(response.data)) {
+                        const findings = response.data
+                        const breakdown = { critical: 0, high: 0, medium: 0, low: 0 }
+                        findings.forEach((f: any) => {
+                            const severity = f.severity?.toUpperCase()
+                            if (severity === 'CRITICAL') breakdown.critical++
+                            else if (severity === 'HIGH') breakdown.high++
+                            else if (severity === 'MEDIUM') breakdown.medium++
+                            else if (severity === 'LOW') breakdown.low++
+                        })
+                        data[project.id] = { count: findings.length, severity: breakdown }
+                    } else {
+                        data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
+                    }
                 } catch (e) {
+                    console.error(`Failed to fetch findings for project ${project.id}:`, e)
                     data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
                 }
-            } else {
-                data[project.id] = { count: 0, severity: { critical: 0, high: 0, medium: 0, low: 0 } }
-            }
-        })
-        setProjectFindingsData(data)
-    }, [projects])
+            }))
+            
+            setProjectFindingsData(data)
+        }
+        
+        fetchFindingsCounts()
+    }, [projects, getToken])
 
     // Filter projects
     const filteredProjects = projects.filter(project => {

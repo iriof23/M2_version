@@ -42,7 +42,7 @@ function Calendar({
                 ),
                 range_end: "day-range-end",
                 selected: "bg-blue-600 text-white hover:bg-blue-600 hover:text-white focus:bg-blue-600 focus:text-white rounded-full shadow-md",
-                today: "bg-accent/50 text-accent-foreground font-semibold rounded-full",
+                today: "bg-emerald-600 text-white font-bold rounded-full ring-2 ring-emerald-400 ring-offset-1 ring-offset-background",
                 outside:
                     "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
                 disabled: "text-muted-foreground opacity-50",

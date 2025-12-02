@@ -66,6 +66,8 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
     const [projectMembers, setProjectMembers] = useState<any[]>([])
     const [loadingMembers, setLoadingMembers] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [startDateOpen, setStartDateOpen] = useState(false)
+    const [endDateOpen, setEndDateOpen] = useState(false)
     
     const [formData, setFormData] = useState({
         // Step 1: Basics
@@ -565,7 +567,7 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2 flex flex-col">
                                     <Label>Start Date <span className="text-red-500">*</span></Label>
-                                    <Popover>
+                                    <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant={"outline"}
@@ -582,7 +584,10 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                             <Calendar
                                                 mode="single"
                                                 selected={formData.startDate}
-                                                onSelect={(date) => updateField('startDate', date)}
+                                                onSelect={(date) => {
+                                                    updateField('startDate', date)
+                                                    setStartDateOpen(false)
+                                                }}
                                                 initialFocus
                                             />
                                         </PopoverContent>
@@ -591,7 +596,7 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
 
                                 <div className="space-y-2 flex flex-col">
                                     <Label>End Date <span className="text-red-500">*</span></Label>
-                                    <Popover>
+                                    <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant={"outline"}
@@ -608,7 +613,10 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                             <Calendar
                                                 mode="single"
                                                 selected={formData.endDate}
-                                                onSelect={(date) => updateField('endDate', date)}
+                                                onSelect={(date) => {
+                                                    updateField('endDate', date)
+                                                    setEndDateOpen(false)
+                                                }}
                                                 initialFocus
                                             />
                                         </PopoverContent>
