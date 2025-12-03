@@ -66,6 +66,7 @@ import { AddClientDialog } from '@/components/AddClientDialog'
 import ClientDetailModal from '@/components/ClientDetailModal'
 import { ClientCard } from '@/components/ClientCard'
 import { useToast } from '@/components/ui/use-toast'
+import { StatCard } from '@/components/StatCard'
 
 // Client interface
 interface Client {
@@ -98,61 +99,6 @@ interface Client {
 }
 
 type ViewMode = 'card' | 'table' | 'list'
-
-// Stat Card Component (Apple style)
-const StatCard = ({ 
-  icon, 
-  label, 
-  value, 
-  subtitle,
-  trend,
-  variant = 'default' 
-}: { 
-  icon: React.ReactNode
-  label: string
-  value: number | string
-  subtitle?: string
-  trend?: { value: number; positive: boolean }
-  variant?: 'default' | 'success' | 'warning' | 'destructive'
-}) => {
-  // Subtle background styles matching the icon color
-  const variantStyles = {
-    default: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-    success: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
-    warning: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
-    destructive: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-  }
-
-  return (
-    <Card className="hover:shadow-card-hover transition-shadow">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className={cn("p-2.5 rounded-xl", variantStyles[variant])}>
-            {icon}
-          </div>
-          {trend && (
-            <div className={cn(
-              "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
-              trend.positive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-            )}>
-              <TrendingUp className={cn("w-3 h-3", !trend.positive && "rotate-180")} />
-              {Math.abs(trend.value)}%
-            </div>
-          )}
-        </div>
-        <div className="mt-4">
-          <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
-          <p className="text-sm font-medium text-slate-500 mt-1">{label}</p>
-          {subtitle && (
-            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 export default function Clients() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
