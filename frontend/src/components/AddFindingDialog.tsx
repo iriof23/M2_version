@@ -67,7 +67,7 @@ export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFind
     }
 
     // Refined Input styles - Light Theme
-    const inputStyle = "h-9 bg-white border-slate-200 text-slate-900 text-sm focus-visible:ring-2 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 placeholder:text-slate-400 focus-visible:ring-offset-0"
+    const inputStyle = "h-9 bg-white border-slate-200 text-slate-900 text-sm focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500 placeholder:text-slate-400 focus-visible:ring-offset-0"
     const labelStyle = "text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block"
 
     return (
@@ -236,7 +236,7 @@ export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFind
                     <Button 
                         onClick={handleSubmit}
                         disabled={!formData.title || !formData.description}
-                        className="bg-violet-600 hover:bg-violet-700 text-white font-medium px-6"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6"
                     >
                         Add Finding
                     </Button>

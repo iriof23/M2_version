@@ -22,8 +22,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
     
-    /* Primary: Violet/Purple gradient accent (from screenshot) */
-    --primary: 262 83% 58%;           /* #8B5CF6 - violet-500 */
+    /* Primary: Emerald accent (security-focused green) */
+    --primary: 160 84% 39%;           /* #10B981 - emerald-500 */
     --primary-foreground: 0 0% 100%;
     
     /* Secondary: Light gray for subtle backgrounds */
@@ -45,7 +45,7 @@
     /* Borders: Very subtle */
     --border: 214 32% 91%;            /* #E2E8F0 - slate-200 */
     --input: 214 32% 91%;
-    --ring: 262 83% 58%;              /* Match primary */
+    --ring: 160 84% 39%;              /* Match primary emerald */
     --radius: 0.75rem;                /* Slightly more rounded */
     
     /* Severity colors (semantic) */
@@ -59,8 +59,8 @@
     --sidebar-bg: 0 0% 100%;
     --sidebar-border: 214 32% 91%;
     --sidebar-hover: 210 40% 96%;
-    --sidebar-active: 262 83% 97%;    /* Light violet tint */
-    --sidebar-active-text: 262 83% 58%;
+    --sidebar-active: 160 84% 97%;    /* Light emerald tint */
+    --sidebar-active-text: 160 84% 39%;
   }
 
   .dark {
@@ -455,9 +455,9 @@
   @apply text-xs font-medium uppercase tracking-wide text-slate-500;
 }
 
-/* Progress bar gradient (purple like screenshot) */
+/* Progress bar gradient (emerald green) */
 .progress-gradient {
-  background: linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%);
+  background: linear-gradient(90deg, #10B981 0%, #34D399 100%);
 }
 
 /* Card hover effect */
@@ -485,7 +485,7 @@
 }
 
 .nav-item-active {
-  @apply bg-violet-50 text-violet-700 hover:bg-violet-50;
+  @apply bg-emerald-50 text-emerald-700 hover:bg-emerald-50;
 }
 
 /* Section headers like screenshot */
@@ -507,7 +507,7 @@
 /* Search input styling */
 .search-input {
   @apply w-full pl-10 pr-4 py-2 text-sm bg-slate-100 border-0 rounded-lg 
-         placeholder-slate-400 focus:ring-2 focus:ring-violet-500 focus:bg-white
+         placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white
          transition-all duration-200;
 }
 
@@ -522,7 +522,7 @@
 }
 
 .sparkline-bar {
-  @apply w-1.5 bg-violet-400 rounded-t;
+  @apply w-1.5 bg-emerald-400 rounded-t;
 }
 
 /* Avatar group */

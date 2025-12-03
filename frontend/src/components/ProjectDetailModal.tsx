@@ -154,7 +154,7 @@ export default function ProjectDetailModal({
             case 'Completed':
                 return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
             case 'Planning':
-                return 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                return 'bg-teal-500/10 text-teal-400 border-teal-500/20'
             case 'On Hold':
                 return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
             default:

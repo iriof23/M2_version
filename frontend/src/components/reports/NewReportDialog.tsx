@@ -275,7 +275,7 @@ export function NewReportDialog({ children, onReportCreated }: NewReportDialogPr
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {children || (
-                    <Button className="bg-violet-600 hover:bg-violet-700 text-white">
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
                         <Plus className="w-4 h-4 mr-2" />
                         New Report
                     </Button>
@@ -297,7 +297,7 @@ export function NewReportDialog({ children, onReportCreated }: NewReportDialogPr
                             onValueChange={setSelectedProjectId}
                             disabled={loading}
                         >
-                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 focus:ring-violet-500/50">
+                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 focus:ring-emerald-500/50">
                                 <SelectValue placeholder={loading ? "Loading projects..." : "Select a project..."} />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-slate-200">
@@ -321,7 +321,7 @@ export function NewReportDialog({ children, onReportCreated }: NewReportDialogPr
                                                 setOpen(false)
                                                 navigate('/projects')
                                             }}
-                                            className="text-violet-600 border-violet-200 hover:bg-violet-50"
+                                            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
                                         >
                                             Create your first Project
                                         </Button>
@@ -347,7 +347,7 @@ export function NewReportDialog({ children, onReportCreated }: NewReportDialogPr
                                 <div className="space-y-1">
                                     <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Timeline</span>
                                     <div className="flex items-center text-sm text-slate-700">
-                                        <Calendar className="w-3.5 h-3.5 mr-1.5 text-violet-500" />
+                                        <Calendar className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
                                         {new Date(selectedProject.startDate).toLocaleDateString()}
                                     </div>
                                 </div>
@@ -367,7 +367,7 @@ export function NewReportDialog({ children, onReportCreated }: NewReportDialogPr
                     <Button
                         onClick={handleCreateDraft}
                         disabled={!selectedProjectId || isSubmitting}
-                        className="bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
                     >
                         {isSubmitting ? (
                             <>

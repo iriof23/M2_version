@@ -608,7 +608,7 @@ export default function Clients() {
                 placeholder="Search clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border-0 rounded-lg placeholder-slate-400 focus:ring-2 focus:ring-violet-500 focus:bg-white transition-all"
+                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border-0 rounded-lg placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
               />
               {searchQuery && (
                 <button
@@ -931,8 +931,8 @@ function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, 
   const SortIcon = ({ columnKey }: { columnKey: string }) => {
     if (sortConfig?.key !== columnKey) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-50" />
     return sortConfig.direction === 'asc'
-      ? <ArrowUp className="w-3 h-3 ml-1 text-violet-600" />
-      : <ArrowDown className="w-3 h-3 ml-1 text-violet-600" />
+      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />
   }
 
   return (
@@ -980,7 +980,7 @@ function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, 
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 rounded-xl">
                       {client.logoUrl && <AvatarImage src={client.logoUrl} alt={client.name} />}
-                      <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                      <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                         {client.name.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -1084,7 +1084,7 @@ function ListView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, o
             <div className="flex items-center gap-4">
               <Avatar className="h-10 w-10 rounded-xl">
                 {client.logoUrl && <AvatarImage src={client.logoUrl} alt={client.name} />}
-                <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                   {client.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

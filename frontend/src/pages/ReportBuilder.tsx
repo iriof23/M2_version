@@ -319,7 +319,7 @@ export default function ReportBuilder() {
             case 'In Progress':
                 return 'bg-emerald-100 text-emerald-700 border-emerald-200'
             case 'Planning':
-                return 'bg-violet-100 text-violet-700 border-violet-200'
+                return 'bg-emerald-100 text-emerald-700 border-emerald-200'
             case 'Completed':
                 return 'bg-slate-100 text-slate-700 border-slate-200'
             case 'On Hold':
@@ -432,7 +432,7 @@ export default function ReportBuilder() {
                                     className={cn(
                                         'px-3 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap',
                                         statusFilter === status
-                                            ? 'bg-violet-600 text-white shadow-sm'
+                                            ? 'bg-emerald-600 text-white shadow-sm'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                                     )}
                                 >
@@ -453,20 +453,20 @@ export default function ReportBuilder() {
                                     className={cn(
                                         'p-3 rounded-xl cursor-pointer transition-all duration-200 group',
                                         isActive
-                                            ? 'bg-violet-50 ring-1 ring-violet-200 shadow-sm'
+                                            ? 'bg-emerald-50 ring-1 ring-emerald-200 shadow-sm'
                                             : 'hover:bg-slate-50'
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10 rounded-xl flex-shrink-0">
-                                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                                                 {project.name.slice(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="min-w-0 flex-1">
                                             <h3 className={cn(
                                                 "text-sm font-semibold truncate",
-                                                isActive ? "text-violet-700" : "text-slate-900 group-hover:text-violet-700"
+                                                isActive ? "text-emerald-700" : "text-slate-900 group-hover:text-emerald-700"
                                             )}>
                                                 {project.name}
                                             </h3>
@@ -474,7 +474,7 @@ export default function ReportBuilder() {
                                                 {project.clientName}
                                             </p>
                                         </div>
-                                        {isActive && <ChevronRight className="w-4 h-4 text-violet-500 flex-shrink-0" />}
+                                        {isActive && <ChevronRight className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
                                     </div>
                                 </div>
                             )
@@ -521,7 +521,7 @@ export default function ReportBuilder() {
                                     <Button 
                                         onClick={() => handleOpenReport(selectedProject.id)}
                                         disabled={isOpeningEditor}
-                                        className="bg-violet-600 hover:bg-violet-700 text-white font-medium h-9 px-4"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9 px-4"
                                     >
                                         {isOpeningEditor ? (
                                             <>
@@ -641,7 +641,7 @@ export default function ReportBuilder() {
                                                             {selectedProject.teamMembers.map((member: { id: string, name: string }) => (
                                                                 <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
                                                                     <Avatar className="h-8 w-8 rounded-lg">
-                                                                        <AvatarFallback className="rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                                                                        <AvatarFallback className="rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                                                                             {member.name.split(' ').map((n: string) => n[0]).join('')}
                                                                         </AvatarFallback>
                                                                     </Avatar>

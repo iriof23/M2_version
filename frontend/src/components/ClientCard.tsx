@@ -86,19 +86,19 @@ export function ClientCard({
     return (
         <div
             onClick={() => onView(client)}
-            className="group bg-card rounded-xl border border-slate-200 hover:border-violet-300 hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden flex flex-col h-full"
+            className="group bg-card rounded-xl border border-slate-200 hover:border-emerald-300 hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden flex flex-col h-full"
         >
             {/* Header */}
             <div className="p-4 border-b border-slate-100 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 rounded-xl">
                         {hasLogo && <AvatarImage src={client.logoUrl} alt={client.name} />}
-                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                             {client.name.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-slate-900 leading-tight group-hover:text-violet-700 transition-colors truncate">
+                        <h3 className="text-sm font-semibold text-slate-900 leading-tight group-hover:text-emerald-700 transition-colors truncate">
                             {client.name}
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5 truncate">

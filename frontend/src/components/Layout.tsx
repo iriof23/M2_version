@@ -19,6 +19,7 @@ import {
     Search,
     Bell,
     HelpCircle,
+    Sparkles,
 } from 'lucide-react'
 
 interface NavItemProps {
@@ -28,30 +29,37 @@ interface NavItemProps {
     count?: number
     isActive?: boolean
     isCollapsed?: boolean
+    isNew?: boolean
 }
 
-function NavItem({ to, icon, label, count, isActive, isCollapsed }: NavItemProps) {
+function NavItem({ to, icon, label, count, isActive, isCollapsed, isNew }: NavItemProps) {
     return (
         <Link
             to={to}
             className={cn(
                 "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150",
                 isActive
-                    ? "bg-violet-50 text-violet-700 dark:bg-sidebar-active dark:text-sidebar-active-text"
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-sidebar-active dark:text-sidebar-active-text"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-sidebar-hover dark:hover:text-white"
             )}
         >
-            <span className={cn("flex-shrink-0", isActive ? "text-violet-600" : "text-slate-400")}>
+            <span className={cn("flex-shrink-0", isActive ? "text-emerald-600" : "text-slate-400")}>
                 {icon}
             </span>
             {!isCollapsed && (
                 <>
                     <span className="flex-1">{label}</span>
-                    {count !== undefined && (
+                    {isNew && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            New
+                        </span>
+                    )}
+                    {count !== undefined && !isNew && (
                         <span className={cn(
                             "text-xs font-medium px-2 py-0.5 rounded-full",
                             isActive
-                                ? "bg-violet-100 text-violet-700"
+                                ? "bg-emerald-100 text-emerald-700"
                                 : "bg-slate-100 text-slate-500"
                         )}>
                             {count}
@@ -169,6 +177,7 @@ export default function Layout() {
                             label="Dashboard"
                             isActive={isActive('/dashboard')}
                             isCollapsed={isCollapsed}
+                            isNew
                         />
                     </NavSection>
 
@@ -179,6 +188,7 @@ export default function Layout() {
                             label="Clients"
                             isActive={isActive('/clients')}
                             isCollapsed={isCollapsed}
+                            isNew
                         />
                         <NavItem
                             to="/projects"
@@ -186,6 +196,7 @@ export default function Layout() {
                             label="Projects"
                             isActive={isActive('/projects')}
                             isCollapsed={isCollapsed}
+                            isNew
                         />
                         <NavItem
                             to="/findings"
@@ -193,6 +204,7 @@ export default function Layout() {
                             label="Findings"
                             isActive={isActive('/findings')}
                             isCollapsed={isCollapsed}
+                            isNew
                         />
                         <NavItem
                             to="/reports"
@@ -200,6 +212,7 @@ export default function Layout() {
                             label="Reports"
                             isActive={isActive('/reports')}
                             isCollapsed={isCollapsed}
+                            isNew
                         />
                     </NavSection>
 
@@ -210,6 +223,7 @@ export default function Layout() {
                             label="Settings"
                             isActive={isActive('/settings')}
                             isCollapsed={isCollapsed}
+                            isNew
                         />
                     </NavSection>
                 </nav>
@@ -220,7 +234,7 @@ export default function Layout() {
                         "flex items-center gap-3",
                         isCollapsed && "justify-center"
                     )}>
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
                             {initials}
                         </div>
                         {!isCollapsed && (
@@ -260,7 +274,7 @@ export default function Layout() {
                             <input
                                 type="text"
                                 placeholder="Search..."
-                                className="w-64 pl-9 pr-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-800 border-0 rounded-lg placeholder-slate-400 focus:ring-2 focus:ring-violet-500 focus:bg-white dark:focus:bg-slate-700 transition-all duration-200"
+                                className="w-64 pl-9 pr-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-800 border-0 rounded-lg placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-700 transition-all duration-200"
                             />
                             <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">
                                 ⌘K

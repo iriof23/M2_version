@@ -31,7 +31,7 @@ import {
     Target,
     Calendar as CalendarIcon,
     Users,
-    CheckCircle2,
+    Check,
     ChevronRight,
     ChevronLeft,
     X,
@@ -54,8 +54,8 @@ interface AddProjectDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onProjectAdded?: (project: any) => void
-    clients: any[] // Pass existing clients for dropdown
-    editingProject?: any // Project to edit (if provided, dialog is in edit mode)
+    clients: any[]
+    editingProject?: any
 }
 
 const parseScopeField = (rawScope: any): string[] => {
@@ -90,33 +90,24 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
     const [endDateOpen, setEndDateOpen] = useState(false)
     
     const [formData, setFormData] = useState({
-        // Step 1: Basics
         name: '',
         clientId: '',
         clientName: '',
         type: 'External',
         description: '',
-
-        // Step 2: Scope & Methodology
         scope: [] as string[],
         methodology: 'OWASP Testing Guide v4',
         complianceFrameworks: [] as string[],
-
-        // Step 3: Timeline & Priority
         startDate: undefined as Date | undefined,
         endDate: undefined as Date | undefined,
         priority: 'Medium',
         status: 'Planning',
-
-        // Step 4: Team
         leadTester: '',
         teamMembers: [] as string[]
     })
 
-    // Update form data when editingProject changes
     useEffect(() => {
         if (editingProject) {
-            // Parse JSON strings for scope and complianceFrameworks from API
             const parsedScope = parseScopeField(editingProject.scope)
             
             let parsedComplianceFrameworks: string[] = []
@@ -148,7 +139,6 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                 teamMembers: editingProject.teamMembers?.map((m: any) => m.id || m) || []
             })
         } else {
-            // Reset form when not editing
             setFormData({
                 name: '',
                 clientId: '',
@@ -169,8 +159,8 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
     }, [editingProject, open])
 
     const [scopeInput, setScopeInput] = useState('')
-
     const totalSteps = 4
+    const stepLabels = ['Basics', 'Scope', 'Timeline', 'Team']
 
     const updateField = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }))
@@ -218,10 +208,8 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                 return
             }
 
-            // Find selected client details
             const selectedClient = clients.find(c => c.id === formData.clientId)
 
-            // Map form data to API expected format (snake_case)
             const payload: Record<string, any> = {
                 name: formData.name.trim(),
                 client_id: formData.clientId,
@@ -236,11 +224,9 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
             if (formData.endDate) {
                 payload.end_date = formData.endDate.toISOString()
             }
-            // Project configuration fields
             if (formData.type) {
                 payload.project_type = formData.type
             }
-            // Always send scope - even empty array to allow clearing
             payload.scope = JSON.stringify(formData.scope || [])
             if (formData.methodology) {
                 payload.methodology = formData.methodology
@@ -251,7 +237,6 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
             if (formData.priority) {
                 payload.priority = formData.priority
             }
-            // Send status - map to backend enum format
             if (formData.status) {
                 const statusMap: Record<string, string> = {
                     'Planning': 'PLANNING',
@@ -263,11 +248,8 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                 payload.status = statusMap[formData.status] || 'PLANNING'
             }
 
-            console.log('Creating project with payload:', payload)
-
             let projectData
             if (editingProject) {
-                // Update existing project
                 const response = await api.put(`/projects/${editingProject.id}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
@@ -277,7 +259,6 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                     description: `${projectData.name} has been updated successfully.`,
                 })
             } else {
-                // Create new project
                 const response = await api.post('/projects/', payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
@@ -288,9 +269,6 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                 })
             }
 
-            console.log('API response:', projectData)
-
-            // Map API response back to frontend format for the callback
             const frontendProjectData = {
                 id: projectData.id,
                 name: projectData.name,
@@ -319,7 +297,6 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
             onProjectAdded?.(frontendProjectData)
             onOpenChange(false)
 
-            // Reset form
             setStep(1)
             setFormData({
                 name: '',
@@ -349,24 +326,17 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
         }
     }
 
-    // Mock team members
-    const availableTeamMembers = [
-        { id: '1', name: 'Alice Johnson', role: 'Lead Pentester' },
-        { id: '2', name: 'Bob Smith', role: 'Security Analyst' },
-        { id: '3', name: 'Carol White', role: 'Junior Tester' },
-        { id: '4', name: 'David Lee', role: 'Mobile Expert' },
-        { id: '5', name: 'Emma Davis', role: 'API Specialist' }
-    ]
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                        <FolderKanban className="h-6 w-6 text-blue-600" />
+            <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto bg-white border-slate-200">
+                <DialogHeader className="pb-4">
+                    <DialogTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2.5">
+                        <div className="p-2 bg-emerald-100 rounded-lg">
+                            <FolderKanban className="h-4 w-4 text-emerald-600" />
+                        </div>
                         {editingProject ? 'Edit Project' : 'Create New Project'}
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="text-sm text-slate-500">
                         {editingProject 
                             ? 'Update project details, scope, timeline, and team'
                             : 'Define scope, timeline, and team for a new penetration test'
@@ -374,83 +344,79 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Progress Indicator */}
-                <div className="flex items-center justify-between mb-6 px-2">
-                    {[1, 2, 3, 4].map((s) => (
+                {/* Premium Step Indicator */}
+                <div className="flex items-center justify-between mb-6 px-4">
+                    {[1, 2, 3, 4].map((s, idx) => (
                         <div key={s} className="flex items-center flex-1">
-                            <div className="flex flex-col items-center flex-1 relative">
+                            <div className="flex flex-col items-center flex-1">
                                 <div
                                     className={cn(
-                                        "w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all z-10",
-                                        step >= s
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-gray-200 dark:bg-gray-700 text-gray-500"
+                                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all z-10",
+                                        step > s
+                                            ? "bg-emerald-600 text-white"
+                                            : step === s
+                                                ? "bg-emerald-600 text-white ring-4 ring-emerald-100"
+                                                : "bg-slate-100 text-slate-400"
                                     )}
                                 >
-                                    {step > s ? <CheckCircle2 className="h-5 w-5" /> : s}
+                                    {step > s ? <Check className="h-4 w-4" /> : s}
                                 </div>
                                 <span className={cn(
-                                    "text-[10px] uppercase tracking-wider mt-2 font-semibold absolute -bottom-6 w-24 text-center",
-                                    step >= s ? "text-blue-600" : "text-gray-400"
+                                    "text-xs mt-2 font-medium",
+                                    step >= s ? "text-emerald-600" : "text-slate-400"
                                 )}>
-                                    {s === 1 && "Basics"}
-                                    {s === 2 && "Scope"}
-                                    {s === 3 && "Timeline"}
-                                    {s === 4 && "Team"}
+                                    {stepLabels[idx]}
                                 </span>
                             </div>
                             {s < totalSteps && (
                                 <div className={cn(
-                                    "h-1 flex-1 mx-2 rounded transition-all",
-                                    step > s ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700"
+                                    "h-px flex-1 mx-2 transition-all -mt-5",
+                                    step > s ? "bg-emerald-600" : "bg-slate-200"
                                 )} />
                             )}
                         </div>
                     ))}
                 </div>
 
-                <div className="mt-8 min-h-[300px]">
+                <div className="min-h-[280px]">
                     {/* Step 1: Project Basics */}
                     {step === 1 && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Project Name <span className="text-red-500">*</span></Label>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="name" className="text-sm font-medium text-slate-700">
+                                    Project Name <span className="text-red-500">*</span>
+                                </Label>
                                 <Input
                                     id="name"
                                     placeholder="e.g., Q1 2024 External Pentest"
                                     value={formData.name}
                                     onChange={(e) => updateField('name', e.target.value)}
-                                    className="text-lg"
+                                    className="h-10 text-sm border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Client <span className="text-red-500">*</span></Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm font-medium text-slate-700">
+                                        Client <span className="text-red-500">*</span>
+                                    </Label>
                                     <Select
                                         value={formData.clientId}
-                                        onValueChange={(value) => {
-                                            console.log('Selected client ID:', value)
-                                            updateField('clientId', value)
-                                        }}
+                                        onValueChange={(value) => updateField('clientId', value)}
                                     >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={clients.length === 0 ? "Loading clients..." : "Select client..."} />
+                                        <SelectTrigger className="h-10 text-sm border-slate-200 focus:ring-emerald-500/20">
+                                            <SelectValue placeholder={clients.length === 0 ? "Loading..." : "Select client..."} />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="bg-white border-slate-200">
                                             {clients.length === 0 ? (
-                                                <div className="p-2 text-sm text-muted-foreground text-center">
-                                                    No clients available. Create a client first.
+                                                <div className="p-2 text-sm text-slate-500 text-center">
+                                                    No clients available
                                                 </div>
                                             ) : (
                                                 clients.map((client) => (
-                                                    <SelectItem key={client.id} value={client.id}>
+                                                    <SelectItem key={client.id} value={client.id} className="text-sm">
                                                         <span className="flex items-center gap-2">
-                                                            {client.logoUrl ? (
-                                                                <img src={client.logoUrl} alt="" className="w-4 h-4 rounded object-cover" />
-                                                            ) : (
-                                                                <Building2 className="w-4 h-4 text-muted-foreground" />
-                                                            )}
+                                                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
                                                             {client.name}
                                                         </span>
                                                     </SelectItem>
@@ -458,42 +424,42 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                             )}
                                         </SelectContent>
                                     </Select>
-                                    {/* Debug: Show client count */}
                                     {clients.length > 0 && (
-                                        <p className="text-xs text-muted-foreground">{clients.length} client(s) available</p>
+                                        <p className="text-xs text-slate-500">{clients.length} client(s) available</p>
                                     )}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>Testing Type</Label>
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm font-medium text-slate-700">Testing Type</Label>
                                     <Select
                                         value={formData.type}
                                         onValueChange={(value) => updateField('type', value)}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-10 text-sm border-slate-200 focus:ring-emerald-500/20">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="External"><span className="flex items-center gap-2"><Globe className="w-4 h-4" /> External Network</span></SelectItem>
-                                            <SelectItem value="Internal"><span className="flex items-center gap-2"><Server className="w-4 h-4" /> Internal Network</span></SelectItem>
-                                            <SelectItem value="Web App"><span className="flex items-center gap-2"><Globe className="w-4 h-4" /> Web Application</span></SelectItem>
-                                            <SelectItem value="Mobile"><span className="flex items-center gap-2"><Smartphone className="w-4 h-4" /> Mobile App</span></SelectItem>
-                                            <SelectItem value="API"><span className="flex items-center gap-2"><FileCode className="w-4 h-4" /> API</span></SelectItem>
-                                            <SelectItem value="Cloud"><span className="flex items-center gap-2"><Cloud className="w-4 h-4" /> Cloud Infrastructure</span></SelectItem>
-                                            <SelectItem value="Network"><span className="flex items-center gap-2"><Wifi className="w-4 h-4" /> Wireless/Network</span></SelectItem>
+                                        <SelectContent className="bg-white border-slate-200">
+                                            <SelectItem value="External" className="text-sm"><span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-slate-400" /> External Network</span></SelectItem>
+                                            <SelectItem value="Internal" className="text-sm"><span className="flex items-center gap-2"><Server className="w-3.5 h-3.5 text-slate-400" /> Internal Network</span></SelectItem>
+                                            <SelectItem value="Web App" className="text-sm"><span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-slate-400" /> Web Application</span></SelectItem>
+                                            <SelectItem value="Mobile" className="text-sm"><span className="flex items-center gap-2"><Smartphone className="w-3.5 h-3.5 text-slate-400" /> Mobile App</span></SelectItem>
+                                            <SelectItem value="API" className="text-sm"><span className="flex items-center gap-2"><FileCode className="w-3.5 h-3.5 text-slate-400" /> API</span></SelectItem>
+                                            <SelectItem value="Cloud" className="text-sm"><span className="flex items-center gap-2"><Cloud className="w-3.5 h-3.5 text-slate-400" /> Cloud Infrastructure</span></SelectItem>
+                                            <SelectItem value="Network" className="text-sm"><span className="flex items-center gap-2"><Wifi className="w-3.5 h-3.5 text-slate-400" /> Wireless/Network</span></SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
                                 <Textarea
                                     id="description"
                                     placeholder="Brief description of the engagement..."
                                     value={formData.description}
                                     onChange={(e) => updateField('description', e.target.value)}
-                                    rows={4}
+                                    rows={3}
+                                    className="text-sm border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 resize-none"
                                 />
                             </div>
                         </div>
@@ -501,29 +467,38 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
 
                     {/* Step 2: Scope & Methodology */}
                     {step === 2 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="space-y-2">
-                                <Label className="flex items-center gap-2">
-                                    <Target className="w-4 h-4 text-blue-600" />
+                        <div className="space-y-5">
+                            <div className="space-y-1.5">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                    <Target className="w-3.5 h-3.5 text-emerald-600" />
                                     Scope Definition
                                 </Label>
                                 <div className="flex gap-2">
                                     <Input
-                                        placeholder="Add domain, IP range, or URL (e.g., 192.168.1.0/24)"
+                                        placeholder="Add domain, IP range, or URL"
                                         value={scopeInput}
                                         onChange={(e) => setScopeInput(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addScopeItem())}
+                                        className="h-10 text-sm border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                                     />
-                                    <Button type="button" onClick={addScopeItem} variant="outline">Add</Button>
+                                    <Button 
+                                        type="button" 
+                                        onClick={addScopeItem} 
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50"
+                                    >
+                                        Add
+                                    </Button>
                                 </div>
-                                <div className="flex flex-wrap gap-2 min-h-[60px] p-3 border rounded-md bg-muted/30">
+                                <div className="flex flex-wrap gap-1.5 min-h-[50px] p-3 border border-slate-200 rounded-lg bg-slate-50/50">
                                     {formData.scope.length === 0 && (
-                                        <span className="text-sm text-muted-foreground italic">No scope items added yet</span>
+                                        <span className="text-xs text-slate-400">No scope items added yet</span>
                                     )}
                                     {formData.scope.map((item) => (
-                                        <Badge key={item} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                                        <Badge key={item} variant="secondary" className="gap-1 pl-2.5 pr-1.5 py-1 bg-white border border-slate-200 text-slate-700">
                                             {item}
-                                            <button onClick={() => removeScopeItem(item)} className="hover:bg-secondary/80 rounded-full p-0.5">
+                                            <button onClick={() => removeScopeItem(item)} className="hover:bg-slate-100 rounded-full p-0.5">
                                                 <X className="h-3 w-3" />
                                             </button>
                                         </Badge>
@@ -531,52 +506,53 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Methodology</Label>
+                            <div className="space-y-1.5">
+                                <Label className="text-sm font-medium text-slate-700">Methodology</Label>
                                 <Select
                                     value={formData.methodology}
                                     onValueChange={(value) => updateField('methodology', value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-10 text-sm border-slate-200 focus:ring-emerald-500/20">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="PTES (Penetration Testing Execution Standard)">PTES (Penetration Testing Execution Standard)</SelectItem>
-                                        <SelectItem value="OWASP Testing Guide v4">OWASP Testing Guide v4</SelectItem>
-                                        <SelectItem value="NIST SP 800-115">NIST SP 800-115</SelectItem>
-                                        <SelectItem value="OSSTMM">OSSTMM</SelectItem>
-                                        <SelectItem value="Custom Methodology">Custom Methodology</SelectItem>
+                                    <SelectContent className="bg-white border-slate-200">
+                                        <SelectItem value="PTES (Penetration Testing Execution Standard)" className="text-sm">PTES</SelectItem>
+                                        <SelectItem value="OWASP Testing Guide v4" className="text-sm">OWASP Testing Guide v4</SelectItem>
+                                        <SelectItem value="NIST SP 800-115" className="text-sm">NIST SP 800-115</SelectItem>
+                                        <SelectItem value="OSSTMM" className="text-sm">OSSTMM</SelectItem>
+                                        <SelectItem value="Custom Methodology" className="text-sm">Custom Methodology</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="flex items-center gap-2">
-                                    <Shield className="w-4 h-4 text-green-600" />
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                    <Shield className="w-3.5 h-3.5 text-slate-400" />
                                     Compliance Requirements
                                 </Label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-3 gap-2">
                                     {['PCI-DSS', 'SOC2', 'HIPAA', 'GDPR', 'ISO 27001', 'FedRAMP'].map((framework) => (
-                                        <div
+                                        <button
                                             key={framework}
+                                            type="button"
                                             onClick={() => toggleCompliance(framework)}
                                             className={cn(
-                                                "flex items-center gap-2 p-2 rounded-md border cursor-pointer transition-colors",
+                                                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all",
                                                 formData.complianceFrameworks.includes(framework)
-                                                    ? "bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                                                    : "hover:bg-muted"
+                                                    ? "bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200"
+                                                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
                                             )}
                                         >
                                             <div className={cn(
-                                                "w-4 h-4 rounded border flex items-center justify-center",
+                                                "w-4 h-4 rounded border-2 flex items-center justify-center transition-all",
                                                 formData.complianceFrameworks.includes(framework)
-                                                    ? "bg-blue-500 border-blue-500"
-                                                    : "border-gray-400"
+                                                    ? "bg-emerald-600 border-emerald-600"
+                                                    : "border-slate-300"
                                             )}>
-                                                {formData.complianceFrameworks.includes(framework) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                                {formData.complianceFrameworks.includes(framework) && <Check className="w-3 h-3 text-white" />}
                                             </div>
-                                            <span className="text-sm font-medium">{framework}</span>
-                                        </div>
+                                            {framework}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -585,24 +561,24 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
 
                     {/* Step 3: Timeline & Priority */}
                     {step === 3 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2 flex flex-col">
-                                    <Label>Start Date <span className="text-red-500">*</span></Label>
+                        <div className="space-y-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm font-medium text-slate-700">Start Date <span className="text-red-500">*</span></Label>
                                     <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                                         <PopoverTrigger asChild>
                                             <Button
-                                                variant={"outline"}
+                                                variant="outline"
                                                 className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !formData.startDate && "text-muted-foreground"
+                                                    "w-full h-10 justify-start text-left text-sm font-normal border-slate-200",
+                                                    !formData.startDate && "text-slate-400"
                                                 )}
                                             >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {formData.startDate ? format(formData.startDate, "PPP") : <span>Pick a date</span>}
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                                                {formData.startDate ? format(formData.startDate, "PPP") : "Pick a date"}
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
+                                        <PopoverContent className="w-auto p-0 bg-white border-slate-200">
                                             <Calendar
                                                 mode="single"
                                                 selected={formData.startDate}
@@ -616,22 +592,22 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                     </Popover>
                                 </div>
 
-                                <div className="space-y-2 flex flex-col">
-                                    <Label>End Date <span className="text-red-500">*</span></Label>
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm font-medium text-slate-700">End Date <span className="text-red-500">*</span></Label>
                                     <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                                         <PopoverTrigger asChild>
                                             <Button
-                                                variant={"outline"}
+                                                variant="outline"
                                                 className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !formData.endDate && "text-muted-foreground"
+                                                    "w-full h-10 justify-start text-left text-sm font-normal border-slate-200",
+                                                    !formData.endDate && "text-slate-400"
                                                 )}
                                             >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {formData.endDate ? format(formData.endDate, "PPP") : <span>Pick a date</span>}
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                                                {formData.endDate ? format(formData.endDate, "PPP") : "Pick a date"}
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
+                                        <PopoverContent className="w-auto p-0 bg-white border-slate-200">
                                             <Calendar
                                                 mode="single"
                                                 selected={formData.endDate}
@@ -647,42 +623,47 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Priority Level</Label>
+                                <Label className="text-sm font-medium text-slate-700">Priority Level</Label>
                                 <div className="grid grid-cols-4 gap-2">
-                                    {['Low', 'Medium', 'High', 'Critical'].map((p) => (
-                                        <button
-                                            key={p}
-                                            type="button"
-                                            onClick={() => updateField('priority', p)}
-                                            className={cn(
-                                                "py-2 px-3 rounded-md border text-sm font-medium transition-all",
-                                                formData.priority === p
-                                                    ? p === 'Critical' ? "bg-red-100 border-red-500 text-red-700"
-                                                        : p === 'High' ? "bg-orange-100 border-orange-500 text-orange-700"
-                                                            : p === 'Medium' ? "bg-yellow-100 border-yellow-500 text-yellow-700"
-                                                                : "bg-green-100 border-green-500 text-green-700"
-                                                    : "hover:bg-muted"
-                                            )}
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
+                                    {(['Low', 'Medium', 'High', 'Critical'] as const).map((p) => {
+                                        const priorityStyles: Record<string, { bg: string; text: string; ring: string }> = {
+                                            'Low': { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200' },
+                                            'Medium': { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200' },
+                                            'High': { bg: 'bg-orange-50', text: 'text-orange-700', ring: 'ring-orange-200' },
+                                            'Critical': { bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200' },
+                                        }
+                                        return (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                onClick={() => updateField('priority', p)}
+                                                className={cn(
+                                                    "py-2.5 px-3 rounded-lg text-sm font-medium transition-all",
+                                                    formData.priority === p
+                                                        ? `${priorityStyles[p].bg} ${priorityStyles[p].text} ring-2 ${priorityStyles[p].ring}`
+                                                        : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                                                )}
+                                            >
+                                                {p}
+                                            </button>
+                                        )
+                                    })}
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Initial Status</Label>
+                                <Label className="text-sm font-medium text-slate-700">Initial Status</Label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {['Planning', 'In Progress', 'On Hold'].map((s) => (
+                                    {(['Planning', 'In Progress', 'On Hold'] as const).map((s) => (
                                         <button
                                             key={s}
                                             type="button"
                                             onClick={() => updateField('status', s)}
                                             className={cn(
-                                                "py-2 px-3 rounded-md border text-sm font-medium transition-all",
+                                                "py-2.5 px-3 rounded-lg text-sm font-medium transition-all",
                                                 formData.status === s
-                                                    ? "bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20"
-                                                    : "hover:bg-muted"
+                                                    ? "bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200"
+                                                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
                                             )}
                                         >
                                             {s}
@@ -695,35 +676,33 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
 
                     {/* Step 4: Team Assignment */}
                     {step === 4 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="space-y-4">
-                                <div className="text-center py-8 border border-dashed rounded-lg">
-                                    <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                                    <p className="text-sm font-medium text-foreground mb-1">
-                                        Team Assignment
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {editingProject 
-                                            ? 'Manage team members from the project details page'
-                                            : 'Assign team members after creating the project'
-                                        }
-                                    </p>
+                        <div className="space-y-4">
+                            <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                                    <Users className="w-6 h-6 text-slate-400" />
                                 </div>
-                                <div className="text-xs text-muted-foreground text-center">
-                                    You can manage the project team from the project details page {editingProject ? '' : "once it's created"}.
-                                </div>
+                                <p className="text-sm font-medium text-slate-900 mb-1">
+                                    Team Assignment
+                                </p>
+                                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                                    {editingProject 
+                                        ? 'Manage team members from the project details page'
+                                        : 'Assign team members after creating the project'
+                                    }
+                                </p>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter className="flex justify-between items-center sm:justify-between mt-6">
-                    <div className="flex gap-2">
+                <DialogFooter className="flex justify-between items-center sm:justify-between mt-6 pt-4 border-t border-slate-100">
+                    <div>
                         {step > 1 && (
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 onClick={handleBack}
+                                className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                             >
                                 <ChevronLeft className="h-4 w-4 mr-1" />
                                 Back
@@ -736,6 +715,7 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                             type="button"
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
+                            className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                         >
                             Cancel
                         </Button>
@@ -748,6 +728,7 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                     (step === 1 && (!formData.name || !formData.clientId)) ||
                                     (step === 3 && (!formData.startDate || !formData.endDate))
                                 }
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
                                 Next
                                 <ChevronRight className="h-4 w-4 ml-1" />
@@ -757,14 +738,14 @@ export function AddProjectDialog({ open, onOpenChange, onProjectAdded, clients, 
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
                                 {isSubmitting ? (
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                 ) : (
-                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    <Check className="h-4 w-4 mr-2" />
                                 )}
-                                {isSubmitting ? 'Saving...' : (editingProject ? 'Update Project' : 'Create Project')}
+                                {isSubmitting ? 'Saving...' : (editingProject ? 'Update' : 'Create')}
                             </Button>
                         )}
                     </div>

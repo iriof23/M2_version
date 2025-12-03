@@ -22,9 +22,10 @@ import { cn } from '@/lib/utils';
 
 interface EditorToolbarProps {
     editor: Editor | null;
+    frameless?: boolean;
 }
 
-export const EditorToolbar = ({ editor }: EditorToolbarProps) => {
+export const EditorToolbar = ({ editor, frameless = false }: EditorToolbarProps) => {
     const { getToken } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
@@ -145,7 +146,12 @@ export const EditorToolbar = ({ editor }: EditorToolbarProps) => {
     );
 
     return (
-        <div className="flex items-center gap-0.5 p-2 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-20 rounded-t-lg">
+        <div className={cn(
+            "flex items-center gap-0.5 p-2 sticky top-0 z-20",
+            frameless 
+                ? "bg-transparent border-b border-transparent pb-3" 
+                : "border-b border-slate-100 bg-slate-50/50 rounded-t-lg"
+        )}>
             {/* Formatting */}
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
@@ -229,7 +235,7 @@ export const EditorToolbar = ({ editor }: EditorToolbarProps) => {
                 onClick={handleAiGenerate}
                 disabled={isGenerating}
                 title="Improve with AI (1 credit)"
-                className="text-violet-500 hover:text-violet-600 hover:bg-violet-50"
+                className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
             >
                 {isGenerating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

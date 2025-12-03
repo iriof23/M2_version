@@ -289,7 +289,7 @@ const useDashboardStore = (getToken: () => Promise<string | null>) => {
                     description: `${r.title} • ${r.project_name || 'Project'}`,
                     timestamp: r.updated_at || r.created_at || new Date().toISOString(),
                     timestampText: formatRelativeTime(new Date(r.updated_at || r.created_at || new Date())),
-                    icon: <FileText className="w-4 h-4 text-purple-400" />,
+                    icon: <FileText className="w-4 h-4 text-teal-400" />,
                     severity: r.status
                 })
             })
@@ -345,7 +345,7 @@ const StatWidget = ({ title, icon, children, actions }: StatWidgetProps) => (
 )
 
 // Mini Sparkline Bar Chart
-const SparklineBar = ({ values, color = 'bg-violet-400' }: { values: number[], color?: string }) => {
+const SparklineBar = ({ values, color = 'bg-emerald-400' }: { values: number[], color?: string }) => {
     const max = Math.max(...values, 1)
     return (
         <div className="flex items-end gap-0.5 h-8">
@@ -390,7 +390,7 @@ const ProjectStatusCard = ({ projects }: { projects: Project[] }) => {
                     </div>
                     <div>
                         <span className="text-3xl font-bold text-slate-900">{inProgress}</span>
-                        <span className="text-sm text-slate-500 ml-2">In Progress <Zap className="w-3 h-3 inline text-violet-500" /></span>
+                        <span className="text-sm text-slate-500 ml-2">In Progress <Zap className="w-3 h-3 inline text-emerald-500" /></span>
                     </div>
                     <div>
                         <span className="text-3xl font-bold text-slate-900">{inReview}</span>
@@ -409,7 +409,7 @@ const ProjectStatusCard = ({ projects }: { projects: Project[] }) => {
                         )}
                         {inProgress > 0 && (
                             <div 
-                                className="h-full bg-gradient-to-r from-violet-500 to-purple-500 transition-all" 
+                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all" 
                                 style={{ width: `${(inProgress / Math.max(total, 1)) * 100}%` }} 
                             />
                         )}
@@ -461,7 +461,7 @@ const FindingsWidget = ({ stats }: { stats: DashboardData['stats'] }) => {
                         {Math.abs(change)}% (7d)
                     </div>
                 </div>
-                <SparklineBar values={[3, 5, 2, 8, 4, 6, 5]} color="bg-violet-400" />
+                <SparklineBar values={[3, 5, 2, 8, 4, 6, 5]} color="bg-emerald-400" />
             </div>
         </StatWidget>
     )
@@ -538,7 +538,7 @@ const ProjectCard = ({
                 </div>
 
                 {/* Title */}
-                <h4 className="font-semibold text-slate-900 mb-1 group-hover:text-violet-700 transition-colors">
+                <h4 className="font-semibold text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
                     {project.name}
                 </h4>
                 <p className="text-sm text-slate-500 flex items-center gap-1 mb-3">
@@ -560,7 +560,7 @@ const ProjectCard = ({
                     </div>
                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full transition-all"
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all"
                             style={{ width: `${project.progress}%` }}
                         />
                     </div>
@@ -651,7 +651,7 @@ const ActivityItem = ({ event }: { event: any }) => {
             case 'client': return 'bg-emerald-100 text-emerald-700'
             case 'project': return 'bg-blue-100 text-blue-700'
             case 'finding': return 'bg-orange-100 text-orange-700'
-            case 'report': return 'bg-purple-100 text-purple-700'
+            case 'report': return 'bg-teal-100 text-teal-700'
             default: return 'bg-slate-100 text-slate-700'
         }
     }
@@ -860,7 +860,7 @@ export default function Dashboard() {
         return (
             <div className="h-[calc(100vh-100px)] flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto" />
+                    <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto" />
                     <p className="text-slate-500 mt-3 text-sm">Loading dashboard...</p>
                 </div>
             </div>
@@ -931,7 +931,7 @@ export default function Dashboard() {
                     <KanbanColumn 
                         title="In Progress" 
                         count={inProgressProjects.length}
-                        icon={<Zap className="w-4 h-4 text-violet-500" />}
+                        icon={<Zap className="w-4 h-4 text-emerald-500" />}
                         projects={inProgressProjects}
                         onViewDetails={handleViewDetails}
                         onResumeReport={handleResumeReport}
@@ -960,7 +960,7 @@ export default function Dashboard() {
                 <Card className="lg:col-span-2">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <Activity className="w-4 h-4 text-violet-600" />
+                            <Activity className="w-4 h-4 text-emerald-600" />
                             Recent Activity
                         </CardTitle>
                     </CardHeader>

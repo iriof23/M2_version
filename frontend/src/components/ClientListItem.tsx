@@ -58,7 +58,7 @@ export function ClientListItem({
                     {/* Avatar */}
                     <Avatar className="h-10 w-10 rounded-xl flex-shrink-0">
                         {hasLogo && <AvatarImage src={client.logoUrl} alt={client.name} />}
-                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                             {client.name.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -66,7 +66,7 @@ export function ClientListItem({
                     {/* Main Info */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                            <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-violet-700 transition-colors">
+                            <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">
                                 {client.name}
                             </h3>
                             {getStatusBadge(client.status)}

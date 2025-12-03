@@ -178,7 +178,7 @@ export default function ClientDetailModal({ client, open, onClose, onEdit, onDel
             case 'Inactive':
                 return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
             case 'Prospect':
-                return 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                return 'bg-teal-500/10 text-teal-400 border-teal-500/20'
             default:
                 return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
         }
@@ -310,7 +310,7 @@ export default function ClientDetailModal({ client, open, onClose, onEdit, onDel
                     {client.tags && client.tags.length > 0 && (
                         <div className="bg-card border border-border rounded-lg p-3">
                             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                <Tag className="w-4 h-4 text-purple-500" />
+                                <Tag className="w-4 h-4 text-teal-500" />
                                 Tags
                             </h3>
                             <div className="flex flex-wrap gap-2">

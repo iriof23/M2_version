@@ -264,7 +264,7 @@ export default function Findings() {
                             <Upload className="w-4 h-4 mr-2" />
                             Import
                         </Button>
-                        <Button className="bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setAddDialogOpen(true)}>
+                        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setAddDialogOpen(true)}>
                             <Plus className="w-4 h-4 mr-2" />
                             New Finding
                         </Button>
@@ -338,7 +338,7 @@ export default function Findings() {
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                                 <Input
                                     placeholder="Search findings..."
-                                    className="pl-9 w-full bg-white border-slate-200 focus:ring-violet-500/20 focus:border-violet-500"
+                                    className="pl-9 w-full bg-white border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -383,7 +383,7 @@ export default function Findings() {
                                         </div>
                                         <h3 className="text-lg font-semibold text-slate-900 mb-2">No custom templates yet</h3>
                                         <p className="max-w-sm mb-6 text-slate-500">Create your first custom finding template or duplicate one from the System Library to get started.</p>
-                                        <Button onClick={() => setAddDialogOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white">
+                                        <Button onClick={() => setAddDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                                             <Plus className="w-4 h-4 mr-2" />
                                             Create Template
                                         </Button>
@@ -396,7 +396,7 @@ export default function Findings() {
                                             setSearchQuery('')
                                             setSelectedCategory('All')
                                             setSelectedSeverity('All')
-                                        }} className="text-violet-600">
+                                        }} className="text-emerald-600">
                                             Clear Filters
                                         </Button>
                                     </>
@@ -446,7 +446,7 @@ export default function Findings() {
                                                         <Button 
                                                             size="sm" 
                                                             variant="ghost" 
-                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-violet-600 hover:bg-violet-50"
+                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                                             onClick={() => handleEdit(finding)}
                                                             title="Edit"
                                                         >
@@ -493,7 +493,7 @@ export default function Findings() {
                                                         <Button 
                                                             size="sm" 
                                                             variant="ghost" 
-                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-violet-600 hover:bg-violet-50"
+                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                                             onClick={() => handleDuplicate(finding)}
                                                             title="Create Template from this finding"
                                                         >

@@ -246,7 +246,7 @@ export default function ReportEditor() {
             case 'In Progress':
                 return 'bg-emerald-100 text-emerald-700'
             case 'Planning':
-                return 'bg-violet-100 text-violet-700'
+                return 'bg-emerald-100 text-emerald-700'
             case 'Completed':
                 return 'bg-slate-100 text-slate-700'
             case 'On Hold':
@@ -269,7 +269,7 @@ export default function ReportEditor() {
         return (
             <div className="h-[calc(100vh-100px)] flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto" />
+                    <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto" />
                     <p className="text-slate-500 mt-2">Loading report...</p>
                 </div>
             </div>
@@ -303,7 +303,7 @@ export default function ReportEditor() {
                 <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold">
+                            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-semibold">
                                 {project.name.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
@@ -327,7 +327,7 @@ export default function ReportEditor() {
                                     {actualFindingsCount > 0 ? Math.round((actualFindingsCount / 10) * 100) : 0}% Complete
                                 </p>
                             </div>
-                            <Button onClick={handleSave} size="sm" disabled={!hasUnsavedChanges || isSaving} className="bg-violet-600 hover:bg-violet-700">
+                            <Button onClick={handleSave} size="sm" disabled={!hasUnsavedChanges || isSaving} className="bg-emerald-600 hover:bg-emerald-700">
                                 {isSaving ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -357,14 +357,14 @@ export default function ReportEditor() {
                                 className={cn(
                                     'flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors relative',
                                     activeTab === tab.id
-                                        ? 'text-violet-600'
+                                        ? 'text-emerald-600'
                                         : 'text-slate-500 hover:text-slate-900'
                                 )}
                             >
                                 <Icon className="w-4 h-4" />
                                 {tab.label}
                                 {activeTab === tab.id && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600" />
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600" />
                                 )}
                             </button>
                         )
@@ -609,7 +609,7 @@ function SettingsTab({
                                     onChange={handleLogoUpload}
                                     className="hidden"
                                 />
-                                <div className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-medium hover:bg-violet-700 transition-colors">
+                                <div className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors">
                                     {settings.clientLogo ? 'Change' : 'Upload'}
                                 </div>
                             </label>
@@ -626,7 +626,7 @@ function SettingsTab({
                             type="text"
                             value={settings.reportTitle}
                             onChange={(e) => onUpdate({ ...settings, reportTitle: e.target.value })}
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                         />
                     </div>
 
@@ -648,7 +648,7 @@ function SettingsTab({
                                     type="text"
                                     value={settings.primaryColor}
                                     onChange={(e) => onUpdate({ ...settings, primaryColor: e.target.value })}
-                                    className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                    className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                     placeholder="#10b981"
                                 />
                             </div>
@@ -663,7 +663,7 @@ function SettingsTab({
                                 type="text"
                                 value={settings.headerText}
                                 onChange={(e) => onUpdate({ ...settings, headerText: e.target.value })}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                 placeholder="e.g., Confidential"
                             />
                         </div>
@@ -677,7 +677,7 @@ function SettingsTab({
                                 type="text"
                                 value={settings.footerText}
                                 onChange={(e) => onUpdate({ ...settings, footerText: e.target.value })}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                 placeholder="e.g., Prepared by Atomik Security"
                             />
                         </div>
@@ -690,7 +690,7 @@ function SettingsTab({
                             <select
                                 value={settings.confidentialityLevel}
                                 onChange={(e) => onUpdate({ ...settings, confidentialityLevel: e.target.value })}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             >
                                 <option value="Public">Public</option>
                                 <option value="Confidential">Confidential</option>
@@ -710,14 +710,14 @@ function SettingsTab({
                                 onClick={() => onUpdate({ ...settings, pdfTemplate: 'classic' })}
                                 className={`p-3 rounded-lg border-2 text-left transition-all ${
                                     (settings.pdfTemplate || 'classic') === 'classic'
-                                        ? 'border-violet-500 bg-violet-50'
+                                        ? 'border-emerald-500 bg-emerald-50'
                                         : 'border-slate-200 hover:border-slate-300 bg-white'
                                 }`}
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className={`w-3 h-3 rounded-full border-2 ${
                                         (settings.pdfTemplate || 'classic') === 'classic'
-                                            ? 'border-violet-500 bg-violet-500'
+                                            ? 'border-emerald-500 bg-emerald-500'
                                             : 'border-slate-300'
                                     }`}>
                                         {(settings.pdfTemplate || 'classic') === 'classic' && (
@@ -735,14 +735,14 @@ function SettingsTab({
                                 onClick={() => onUpdate({ ...settings, pdfTemplate: 'apple' })}
                                 className={`p-3 rounded-lg border-2 text-left transition-all ${
                                     settings.pdfTemplate === 'apple'
-                                        ? 'border-violet-500 bg-violet-50'
+                                        ? 'border-emerald-500 bg-emerald-50'
                                         : 'border-slate-200 hover:border-slate-300 bg-white'
                                 }`}
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className={`w-3 h-3 rounded-full border-2 ${
                                         settings.pdfTemplate === 'apple'
-                                            ? 'border-violet-500 bg-violet-500'
+                                            ? 'border-emerald-500 bg-emerald-500'
                                             : 'border-slate-300'
                                     }`}>
                                         {settings.pdfTemplate === 'apple' && (
@@ -938,7 +938,7 @@ function ExportTab({ reportId, settings }: { reportId: string, settings: any }) 
                                     className={cn(
                                         'p-4 border-2 rounded-xl text-center transition-all',
                                         exportFormat === format
-                                            ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                                             : 'border-slate-200 hover:border-slate-300 text-slate-600'
                                     )}
                                 >
@@ -964,7 +964,7 @@ function ExportTab({ reportId, settings }: { reportId: string, settings: any }) 
                     <Button
                         onClick={handleExport}
                         disabled={isExporting}
-                        className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                         size="lg"
                     >
                         {isExporting ? (

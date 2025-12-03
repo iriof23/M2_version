@@ -122,7 +122,7 @@ type ViewMode = 'card' | 'table' | 'timeline'
 const getStatusColor = (status: Project['status']) => {
     switch (status) {
         case 'In Progress': return 'bg-emerald-500 hover:bg-emerald-600 text-white'
-        case 'Planning': return 'bg-violet-500 hover:bg-violet-600 text-white'
+        case 'Planning': return 'bg-emerald-500 hover:bg-emerald-600 text-white'
         case 'On Hold': return 'bg-amber-500 hover:bg-amber-600 text-white'
         case 'Completed': return 'bg-slate-500 hover:bg-slate-600 text-white'
         case 'Cancelled': return 'bg-slate-400 hover:bg-slate-500 text-white'
@@ -731,7 +731,7 @@ export default function Projects() {
                         Manage penetration testing projects and track progress
                     </p>
                 </div>
-                <Button onClick={openAddProjectDialog} className="bg-violet-600 hover:bg-violet-700">
+                <Button onClick={openAddProjectDialog} className="bg-emerald-600 hover:bg-emerald-700">
                     <Plus className="w-4 h-4 mr-2" />
                     New Project
                 </Button>
@@ -779,7 +779,7 @@ export default function Projects() {
                                 placeholder="Search projects..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white text-slate-900 placeholder:text-slate-400"
+                                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-slate-900 placeholder:text-slate-400"
                             />
                             {searchQuery && (
                                 <button
@@ -803,7 +803,7 @@ export default function Projects() {
                             <Filter className="h-4 w-4 mr-2" />
                             Filter
                             {Object.keys(appliedFilters).length > 0 && (
-                                <span className="ml-1.5 bg-violet-600 text-white text-[10px] font-semibold rounded-full w-4 h-4 flex items-center justify-center">
+                                <span className="ml-1.5 bg-emerald-600 text-white text-[10px] font-semibold rounded-full w-4 h-4 flex items-center justify-center">
                                     {Object.keys(appliedFilters).length}
                                 </span>
                             )}
@@ -972,7 +972,7 @@ export default function Projects() {
                     <p className="text-xs text-slate-500 mb-4 max-w-sm">
                         Get started by creating your first penetration testing project
                     </p>
-                    <Button onClick={openAddProjectDialog} size="sm" className="bg-violet-600 hover:bg-violet-700">
+                    <Button onClick={openAddProjectDialog} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
                         <Plus className="h-4 w-4 mr-2" />
                         Create Project
                     </Button>
@@ -1135,7 +1135,7 @@ function ProjectCard({
         <Card
             className={cn(
                 "hover:shadow-card-hover transition-all cursor-pointer group",
-                isSelected && "ring-2 ring-violet-500"
+                isSelected && "ring-2 ring-emerald-500"
             )}
             onClick={() => onViewDetails(project)}
         >
@@ -1144,12 +1144,12 @@ function ProjectCard({
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 rounded-xl">
-                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                                 {project.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                            <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-violet-700 transition-colors">
+                            <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">
                                 {project.name}
                             </h3>
                             <p className="text-xs text-slate-500 flex items-center gap-1">
@@ -1239,7 +1239,7 @@ const getStatusDotColor = (status: string) => {
     switch (status) {
         case 'In Progress': return 'bg-emerald-500'
         case 'Completed': return 'bg-blue-500'
-        case 'Planning': return 'bg-purple-500'
+        case 'Planning': return 'bg-teal-500'
         case 'On Hold': return 'bg-orange-500'
         case 'Cancelled': return 'bg-zinc-500'
         default: return 'bg-zinc-500'
@@ -1267,8 +1267,8 @@ function TableView({
     const SortIcon = ({ columnKey }: { columnKey: string }) => {
         if (sortConfig?.key !== columnKey) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-50" />
         return sortConfig.direction === 'asc'
-            ? <ArrowUp className="w-3 h-3 ml-1 text-violet-600" />
-            : <ArrowDown className="w-3 h-3 ml-1 text-violet-600" />
+            ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
+            : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />
     }
 
     return (
@@ -1322,7 +1322,7 @@ function TableView({
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
                                             <Avatar className="h-10 w-10 rounded-xl">
-                                                <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                                                <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                                                     {project.name.slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -1431,8 +1431,8 @@ function TimelineView({
     const getBarColor = (status: string) => {
         switch (status) {
             case 'In Progress': return 'bg-emerald-500'
-            case 'Completed': return 'bg-violet-500'
-            case 'Planning': return 'bg-purple-500'
+            case 'Completed': return 'bg-emerald-500'
+            case 'Planning': return 'bg-teal-500'
             case 'On Hold': return 'bg-amber-500'
             case 'Cancelled': return 'bg-slate-400'
             default: return 'bg-slate-400'
@@ -1470,7 +1470,7 @@ function TimelineView({
                                     <div className="w-64 flex-shrink-0 p-4 border-r border-slate-100 flex items-center justify-between sticky left-0 bg-white z-10 group-hover:bg-slate-50/50 transition-colors">
                                         <div className="flex items-center gap-3 min-w-0">
                                             <Avatar className="h-10 w-10 rounded-xl">
-                                                <AvatarFallback className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-semibold">
+                                                <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
                                                     {project.name.slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>

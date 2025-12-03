@@ -16,6 +16,7 @@ interface EditorProps {
     editable?: boolean;
     className?: string;
     variant?: 'default' | 'evidence';
+    frameless?: boolean; // Remove container borders/backgrounds for seamless look
 }
 
 export const Editor = ({
@@ -25,6 +26,7 @@ export const Editor = ({
     editable = true,
     className,
     variant = 'default',
+    frameless = false,
 }: EditorProps) => {
     const isInternalChange = useRef(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +115,7 @@ export const Editor = ({
                     // Text - Full width, justified text for better readability - Light theme
                     'prose-p:text-slate-600 prose-p:leading-relaxed prose-p:my-2',
                     '[&_p]:text-sm [&_p]:leading-relaxed [&_p]:my-2 [&_p]:text-justify',
-                    'prose-a:text-violet-600 prose-a:no-underline hover:prose-a:underline',
+                    'prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline',
                     'prose-strong:text-slate-900 prose-strong:font-semibold',
                     'prose-em:text-slate-700 prose-em:italic',
                     'prose-ul:list-disc prose-ul:pl-5 prose-ul:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-ol:my-2',
@@ -126,7 +128,7 @@ export const Editor = ({
                     '[&_pre::before]:content-[""] [&_pre::before]:absolute [&_pre::before]:top-3 [&_pre::before]:left-3 [&_pre::before]:w-2 [&_pre::before]:h-2 [&_pre::before]:rounded-full [&_pre::before]:bg-[#ff5f56] [&_pre::before]:shadow-[0.75rem_0_0_#ffbd2e,1.5rem_0_0_#27c93f]',
 
                     // Blockquotes (Callout Style) - Light theme
-                    '[&_blockquote]:bg-slate-50 [&_blockquote]:border-l-4 [&_blockquote]:border-violet-500 [&_blockquote]:py-2 [&_blockquote]:px-4 [&_blockquote]:not-italic [&_blockquote]:text-slate-600 [&_blockquote]:rounded-r-md [&_blockquote]:my-2 [&_blockquote]:text-sm',
+                    '[&_blockquote]:bg-slate-50 [&_blockquote]:border-l-4 [&_blockquote]:border-emerald-500 [&_blockquote]:py-2 [&_blockquote]:px-4 [&_blockquote]:not-italic [&_blockquote]:text-slate-600 [&_blockquote]:rounded-r-md [&_blockquote]:my-2 [&_blockquote]:text-sm',
 
                     // Layout - Full width
                     'min-h-[150px] w-full h-auto [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:h-auto [&_.ProseMirror]:w-full'
@@ -300,10 +302,16 @@ export const Editor = ({
     return (
         <div
             className={cn(
-                'relative w-full rounded-lg border bg-white transition-all duration-200 cursor-text',
-                showDropZone
-                    ? 'min-h-[200px] border-dashed border-2 border-slate-300 hover:border-slate-400'
-                    : 'min-h-[150px] h-auto border-slate-200 focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500/20',
+                'relative w-full transition-all duration-200 cursor-text',
+                // Frameless mode: no borders, backgrounds, or decorations
+                frameless
+                    ? 'bg-transparent border-0 shadow-none rounded-none'
+                    : cn(
+                        'rounded-lg border bg-white',
+                        showDropZone
+                            ? 'min-h-[200px] border-dashed border-2 border-slate-300 hover:border-slate-400'
+                            : 'min-h-[150px] h-auto border-slate-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/20'
+                    ),
                 'p-0',
                 className
             )}
@@ -311,7 +319,7 @@ export const Editor = ({
             onDrop={handleWrapperDrop}
             onDragOver={handleWrapperDragOver}
         >
-            {showDropZone && (
+            {showDropZone && !frameless && (
                 <div
                     className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
                     onClick={() => fileInputRef.current?.click()}
@@ -333,8 +341,8 @@ export const Editor = ({
                 accept="image/*"
                 onChange={handleFileInputChange}
             />
-            {editable && <EditorToolbar editor={editor} />}
-            <div className="p-4 w-full">
+            {editable && <EditorToolbar editor={editor} frameless={frameless} />}
+            <div className={cn("w-full", frameless ? "p-0" : "p-4")}>
                 <EditorContent editor={editor} className="w-full" />
             </div>
         </div>
