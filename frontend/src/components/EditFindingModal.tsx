@@ -16,6 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import CVSSCalculator from './CVSSCalculator';
 
 export interface ProjectFinding {
     id: string;
@@ -58,10 +59,19 @@ const severityConfig = {
 // Status uses neutral colors - severity is the urgency indicator
 const statusOptions = ['Open', 'In Progress', 'Fixed', 'Accepted Risk']
 
+const formatCvssScore = (score?: number | null) => {
+    if (score === undefined || score === null || Number.isNaN(score)) return '';
+    return Number(score).toFixed(1);
+};
+
 export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete, isEditable = false }: EditFindingModalProps) {
     const [localFinding, setLocalFinding] = useState<ProjectFinding | null>(finding);
     const [isDirty, setIsDirty] = useState(false);
     const [newAssetUrl, setNewAssetUrl] = useState('');
+    const [cvssMeta, setCvssMeta] = useState<{ vector: string; score: string }>({
+        vector: finding?.cvssVector || '',
+        score: formatCvssScore(finding?.cvssScore),
+    });
 
     const generateFindingId = (): string => {
         if (finding?.references) return finding.references;
@@ -78,8 +88,20 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
 
     useEffect(() => {
         setLocalFinding(finding);
+        setCvssMeta({
+            vector: finding?.cvssVector || '',
+            score: formatCvssScore(finding?.cvssScore),
+        });
         setIsDirty(false);
     }, [finding]);
+
+    useEffect(() => {
+        if (!localFinding) return;
+        setCvssMeta({
+            vector: localFinding.cvssVector || '',
+            score: formatCvssScore(localFinding.cvssScore),
+        });
+    }, [localFinding?.cvssVector, localFinding?.cvssScore]);
 
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -147,55 +169,54 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                 
                 {/* Premium Header */}
                 <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white shrink-0">
-                    <div className="px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                            {/* Gradient Shield Icon */}
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shrink-0">
-                                <Shield className="w-6 h-6 text-white" />
-                            </div>
+                    <div className="px-6 py-4 grid grid-cols-[auto_1fr_auto] items-center gap-4">
+                        {/* Gradient Shield Icon */}
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                            <Shield className="w-6 h-6 text-white" />
+                        </div>
+                        
+                        {/* Title and Metadata - Takes all remaining space */}
+                        <div className="min-w-0">
+                            {/* Title */}
+                            {isEditable ? (
+                                <Input 
+                                    value={localFinding.title} 
+                                    onChange={(e) => handleChange({ title: e.target.value })}
+                                    className="font-bold text-xl border-none px-0 h-8 focus-visible:ring-0 bg-transparent text-slate-900 placeholder:text-slate-400 shadow-none w-full"
+                                />
+                            ) : (
+                                <h2 className="font-bold text-xl text-slate-900 tracking-tight break-words" title={localFinding.title}>
+                                    {localFinding.title}
+                                </h2>
+                            )}
                             
-                            <div className="flex flex-col min-w-0 gap-1.5">
-                                {/* Title */}
-                                {isEditable ? (
-                                    <Input 
-                                        value={localFinding.title} 
-                                        onChange={(e) => handleChange({ title: e.target.value })}
-                                        className="font-bold text-xl border-none px-0 h-8 focus-visible:ring-0 bg-transparent text-slate-900 placeholder:text-slate-400 shadow-none"
-                                    />
-                                ) : (
-                                    <h2 className="font-bold text-xl text-slate-900 truncate tracking-tight">
-                                        {localFinding.title}
-                                    </h2>
+                            {/* Metadata Pills */}
+                            <div className="flex items-center gap-2 text-xs mt-1.5 flex-wrap">
+                                <span className={cn(
+                                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border',
+                                    currentSeverity.bg, currentSeverity.color, currentSeverity.border
+                                )}>
+                                    {(() => {
+                                        const Icon = currentSeverity.icon;
+                                        return <Icon className="w-3 h-3" />;
+                                    })()}
+                                    {localFinding.severity}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{findingId}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[11px] text-slate-500">
+                                    {localFinding.status}
+                                </span>
+                                {isDirty && (
+                                    <>
+                                        <span className="text-slate-300">•</span>
+                                        <span className="text-amber-600 font-medium flex items-center gap-1 text-[11px]">
+                                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                                            Unsaved changes
+                                        </span>
+                                    </>
                                 )}
-                                
-                                {/* Metadata Pills */}
-                                <div className="flex items-center gap-2 text-xs">
-                                    <span className={cn(
-                                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border',
-                                        currentSeverity.bg, currentSeverity.color, currentSeverity.border
-                                    )}>
-                                        {(() => {
-                                            const Icon = currentSeverity.icon;
-                                            return <Icon className="w-3 h-3" />;
-                                        })()}
-                                        {localFinding.severity}
-                                    </span>
-                                    <span className="text-slate-300">•</span>
-                                    <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{findingId}</span>
-                                    <span className="text-slate-300">•</span>
-                                    <span className="text-[11px] text-slate-500">
-                                        {localFinding.status}
-                                    </span>
-                                    {isDirty && (
-                                        <>
-                                            <span className="text-slate-300">•</span>
-                                            <span className="text-amber-600 font-medium flex items-center gap-1 text-[11px]">
-                                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                                                Unsaved changes
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
                             </div>
                         </div>
                         
@@ -286,13 +307,32 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                     Technical
                                 </h4>
                                 <div>
-                                    <label className="text-[10px] text-slate-500 mb-1.5 block">CVSS Vector</label>
-                                    <Input
-                                        value={localFinding.cvssVector || ''}
-                                        onChange={(e) => handleChange({ cvssVector: e.target.value })}
-                                        className="h-8 font-mono text-[10px] bg-white border-slate-200 text-slate-700 placeholder:text-slate-400"
-                                        placeholder="CVSS:3.1/AV:N/AC:L/..."
-                                    />
+                                    <label className="text-[10px] text-slate-500 mb-1.5 block">CVSS Score</label>
+                                    <div className="flex gap-1.5">
+                                        <Input
+                                            value={cvssMeta.score}
+                                            readOnly
+                                            className="h-8 font-mono text-[12px] bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 flex-1"
+                                            placeholder="0.0"
+                                        />
+                                        <CVSSCalculator
+                                            vector={cvssMeta.vector}
+                                            onUpdate={(vector, score, severity) => {
+                                                handleChange({ 
+                                                    cvssVector: vector, 
+                                                    cvssScore: score,
+                                                    severity: severity as any 
+                                                });
+                                                setCvssMeta({
+                                                    vector,
+                                                    score: formatCvssScore(score),
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 font-mono mt-1 line-clamp-1">
+                                        {cvssMeta.vector || 'Vector will be generated after applying a score'}
+                                    </p>
                                 </div>
                             </div>
 

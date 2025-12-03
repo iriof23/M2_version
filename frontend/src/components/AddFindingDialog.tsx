@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { Shield, X, AlertTriangle, Flame, AlertCircle, Info, FileText, Wrench, Camera } from 'lucide-react'
+import CVSSCalculator from './CVSSCalculator'
 
 interface AddFindingDialogProps {
     open: boolean
@@ -190,12 +191,25 @@ export function AddFindingDialog({ open, onOpenChange, onFindingAdded }: AddFind
                                 {/* CVSS */}
                                 <div>
                                     <label className="text-[10px] text-slate-500 mb-1.5 block">CVSS Vector</label>
-                                    <Input
-                                        value={formData.cvss_vector}
-                                        onChange={(e) => setFormData({ ...formData, cvss_vector: e.target.value })}
-                                        placeholder="CVSS:3.1/AV:N/AC:L/..."
-                                        className="h-8 bg-white border-slate-200 text-[10px] font-mono text-slate-700 placeholder:text-slate-400"
-                                    />
+                                    <div className="flex gap-1.5">
+                                        <Input
+                                            key={`cvss-${formData.cvss_vector?.slice(-10) || 'empty'}`}
+                                            value={formData.cvss_vector}
+                                            onChange={(e) => setFormData({ ...formData, cvss_vector: e.target.value })}
+                                            placeholder="CVSS:3.1/AV:N/AC:L/..."
+                                            className="h-8 bg-white border-slate-200 text-[10px] font-mono text-slate-700 placeholder:text-slate-400 flex-1"
+                                        />
+                                        <CVSSCalculator
+                                            vector={formData.cvss_vector}
+                                            onUpdate={(vector, _score, severity) => {
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    cvss_vector: vector, 
+                                                    severity: severity 
+                                                });
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

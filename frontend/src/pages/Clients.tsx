@@ -921,7 +921,11 @@ function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, 
           </thead>
           <tbody className="divide-y divide-slate-50">
             {clients.map((client) => (
-              <tr key={client.id} className="hover:bg-slate-50/50 transition-colors group">
+              <tr 
+                key={client.id} 
+                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                onClick={() => onView(client)}
+              >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 rounded-xl">
@@ -973,16 +977,16 @@ function TableView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, 
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => onView(client)}>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onView(client); }}>
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => onEdit(client)}>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onEdit(client); }}>
                       <Edit className="w-4 h-4" />
                     </Button>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600">
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -1025,7 +1029,11 @@ function ListView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, o
   return (
     <div className="space-y-2">
       {clients.map((client) => (
-        <Card key={client.id} className="hover:shadow-card-hover transition-shadow group">
+        <Card 
+          key={client.id} 
+          className="hover:shadow-card-hover transition-shadow group cursor-pointer"
+          onClick={() => onView(client)}
+        >
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-10 w-10 rounded-xl">
@@ -1058,18 +1066,16 @@ function ListView({ clients, onView, onEdit, onDelete, onDuplicate, onArchive, o
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => onView(client)}>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onView(client); }}>
                   <Eye className="w-4 h-4 mr-1" /> View
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onEdit(client)}>
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onEdit(client); }}>
                   <Edit className="w-4 h-4 mr-1" /> Edit
                 </Button>
               </div>
 
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => onView(client)}>
-                <ChevronRight className="w-5 h-5 text-slate-400" />
-              </Button>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
             </div>
           </CardContent>
         </Card>

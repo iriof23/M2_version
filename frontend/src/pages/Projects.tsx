@@ -1160,7 +1160,7 @@ function ProjectCard({
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600">
                                 <MoreVertical className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -1318,7 +1318,11 @@ function TableView({
                             const isDueSoon = daysLeft >= 0 && daysLeft <= 5 && project.status !== 'Completed'
 
                             return (
-                                <tr key={project.id} className="hover:bg-slate-50/50 transition-colors group">
+                                <tr 
+                                    key={project.id} 
+                                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                    onClick={() => onViewDetails(project)}
+                                >
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
                                             <Avatar className="h-10 w-10 rounded-xl">
@@ -1360,16 +1364,16 @@ function TableView({
                                         )}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button variant="ghost" size="sm" onClick={() => onViewDetails(project)}>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onViewDetails(project); }}>
                                                 <Eye className="w-4 h-4" />
                                             </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => onEditProject(project)}>
+                                            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onEditProject(project); }}>
                                                 <Edit className="w-4 h-4" />
                                             </Button>
                                             <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
+                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600">
                                                         <MoreVertical className="w-4 h-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -1466,7 +1470,7 @@ function TimelineView({
                             const width = (duration / totalDays) * 100
 
                             return (
-                                <div key={project.id} className="flex hover:bg-slate-50/50 transition-colors group">
+                                <div key={project.id} className="flex hover:bg-slate-50/50 transition-colors group cursor-pointer" onClick={() => onViewDetails(project)}>
                                     <div className="w-64 flex-shrink-0 p-4 border-r border-slate-100 flex items-center justify-between sticky left-0 bg-white z-10 group-hover:bg-slate-50/50 transition-colors">
                                         <div className="flex items-center gap-3 min-w-0">
                                             <Avatar className="h-10 w-10 rounded-xl">
@@ -1480,8 +1484,8 @@ function TimelineView({
                                             </div>
                                         </div>
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <button className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                <button className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                                                     <MoreVertical className="w-4 h-4" />
                                                 </button>
                                             </DropdownMenuTrigger>
