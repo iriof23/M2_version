@@ -9,7 +9,6 @@ import {
   List,
   Table2,
   Plus,
-  Search,
   Filter,
   Download,
   MoreVertical,
@@ -105,7 +104,6 @@ export default function Clients() {
     const saved = localStorage.getItem('atomik_client_view_mode')
     return (saved === 'card' || saved === 'table' || saved === 'list') ? saved : 'table'
   })
-  const [searchQuery, setSearchQuery] = useState('')
   const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
   const { toast } = useToast()
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
@@ -253,11 +251,6 @@ export default function Clients() {
 
   const clearAllFilters = () => {
     setActiveFilters([])
-    setSearchQuery('')
-  }
-
-  const clearSearch = () => {
-    setSearchQuery('')
   }
 
   const openAddClientDialog = () => {
@@ -442,11 +435,6 @@ export default function Clients() {
   // Filter clients (PRESERVED)
   const filteredClients = useMemo(() => {
     let result = clients.filter(client => {
-      const lowerCaseSearchQuery = searchQuery.toLowerCase()
-      const matchesSearch = client.name.toLowerCase().includes(lowerCaseSearchQuery) ||
-        client.industry.toLowerCase().includes(lowerCaseSearchQuery) ||
-        client.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchQuery))
-
       const matchesFilters = Object.entries(appliedFilters).every(([key, value]) => {
         if (!value || (Array.isArray(value) && value.length === 0)) return true
         if (key === 'status') return (value as string[]).includes(client.status)
@@ -455,7 +443,7 @@ export default function Clients() {
         return true
       })
 
-      return matchesSearch && matchesFilters
+      return matchesFilters
     })
 
     if (sortConfig) {
@@ -486,7 +474,7 @@ export default function Clients() {
     }
 
     return result
-  }, [clients, searchQuery, appliedFilters, sortConfig])
+  }, [clients, appliedFilters, sortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -546,26 +534,6 @@ export default function Clients() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            {/* Search */}
-            <div className="relative flex-1 w-full sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search clients..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border-0 rounded-lg placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
             {/* Actions */}
             <div className="flex items-center gap-2">
               <Button
@@ -733,7 +701,7 @@ export default function Clients() {
       )}
 
       {/* Empty State: No clients */}
-      {!isLoading && clients.length === 0 && !searchQuery && (
+      {!isLoading && clients.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
@@ -746,25 +714,6 @@ export default function Clients() {
             <Button onClick={openAddClientDialog} size="lg">
               <Plus className="w-5 h-5 mr-2" />
               Add Your First Client
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Empty State: No search results */}
-      {!isLoading && filteredClients.length === 0 && searchQuery && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-              <Search className="w-8 h-8 text-slate-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No results found</h3>
-            <p className="text-slate-500 mb-6 max-w-sm">
-              No clients match "{searchQuery}". Try different search terms.
-            </p>
-            <Button variant="outline" onClick={clearSearch}>
-              <X className="w-4 h-4 mr-2" />
-              Clear Search
             </Button>
           </CardContent>
         </Card>

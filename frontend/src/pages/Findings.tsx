@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-    Search,
     Plus,
     Shield,
+    Filter,
     Globe,
     Server,
     Database,
@@ -17,7 +17,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Eye,
-    Filter,
     LayoutGrid,
     List as ListIcon,
     AlertTriangle,
@@ -50,7 +49,6 @@ import { Card } from '@/components/ui/card'
 
 export default function Findings() {
     const [activeTab, setActiveTab] = useState<'system' | 'custom'>('system')
-    const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string>('All')
     const [selectedSeverity, setSelectedSeverity] = useState<string>('All')
     const [customFindings, setCustomFindings] = useState<any[]>([])
@@ -93,19 +91,16 @@ export default function Findings() {
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1)
-    }, [searchQuery, selectedCategory, selectedSeverity, activeTab])
+    }, [selectedCategory, selectedSeverity, activeTab])
 
     // Filter Logic
     const currentList = activeTab === 'system' ? vulnerabilityDatabase : customFindings
 
     const filteredFindings = currentList.filter(finding => {
-        const matchesSearch = finding.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            finding.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (finding.id && finding.id.toLowerCase().includes(searchQuery.toLowerCase()))
         const matchesCategory = selectedCategory === 'All' || finding.category === selectedCategory
         const matchesSeverity = selectedSeverity === 'All' || finding.severity === selectedSeverity
 
-        return matchesSearch && matchesCategory && matchesSeverity
+        return matchesCategory && matchesSeverity
     })
 
     // Pagination Logic
@@ -186,7 +181,9 @@ export default function Findings() {
             affectedAssets: [],
             screenshots: [],
             evidence: finding.evidence,
-            references: finding.references
+            references: finding.references,
+            cvssScore: finding.cvss_score || finding.cvssScore,
+            cvssVector: finding.cvss_vector || finding.cvssVector
         }
         setEditingFinding(mappedFinding)
     }
@@ -200,7 +197,11 @@ export default function Findings() {
                 description: updatedFinding.description,
                 remediation: updatedFinding.recommendations,
                 evidence: updatedFinding.evidence,
-                references: updatedFinding.references
+                references: updatedFinding.references,
+                cvss_score: updatedFinding.cvssScore,
+                cvss_vector: updatedFinding.cvssVector,
+                cvssScore: updatedFinding.cvssScore,
+                cvssVector: updatedFinding.cvssVector
             } : f
         )
         saveCustomFindings(updatedCustomFindings)
@@ -334,15 +335,6 @@ export default function Findings() {
                         </div>
 
                         <div className="flex gap-3 flex-1 justify-end w-full md:w-auto">
-                            <div className="relative flex-1 md:w-64 max-w-md">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                                <Input
-                                    placeholder="Search findings..."
-                                    className="pl-9 w-full bg-white border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50">
@@ -376,7 +368,7 @@ export default function Findings() {
                     <div className="min-h-[400px]">
                         {filteredFindings.length === 0 ? (
                             <div className="flex flex-col items-center justify-center text-center py-20 text-slate-500">
-                                {activeTab === 'custom' && !searchQuery ? (
+                                {activeTab === 'custom' ? (
                                     <>
                                         <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-4">
                                             <FileText className="w-8 h-8 text-slate-300" />
@@ -390,10 +382,9 @@ export default function Findings() {
                                     </>
                                 ) : (
                                     <>
-                                        <Search className="w-12 h-12 mx-auto mb-4 text-slate-200" />
+                                        <Filter className="w-12 h-12 mx-auto mb-4 text-slate-200" />
                                         <p>No findings found matching your criteria.</p>
                                         <Button variant="link" onClick={() => {
-                                            setSearchQuery('')
                                             setSelectedCategory('All')
                                             setSelectedSeverity('All')
                                         }} className="text-emerald-600">
@@ -561,6 +552,7 @@ export default function Findings() {
                         }
                     }}
                     isEditable={activeTab === 'custom'}
+                    isSystemLibrary={activeTab === 'system'}
                 />
             )}
         </div>

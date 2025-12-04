@@ -22,7 +22,6 @@ import {
     TrendingDown,
     CheckCircle2,
     Plus,
-    Search,
     FileText,
     Users,
     Zap,
@@ -718,14 +717,6 @@ export default function Dashboard() {
     const handleNewClient = () => setShowClientDialog(true)
     const handleNewFinding = () => setShowFindingDialog(true)
     const handleNewReport = () => navigate('/report-builder')
-    
-    const handleSearch = () => {
-        toast({
-            title: "Global Search",
-            description: "Search across reports, clients, and projects (coming soon)",
-        })
-        navigate('/projects')
-    }
     
     const handleStartProject = () => setShowProjectDialog(true)
     

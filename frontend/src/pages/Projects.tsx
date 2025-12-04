@@ -11,7 +11,6 @@ import {
     LayoutGrid,
     Table2,
     Plus,
-    Search,
     Filter,
     Download,
     Building2,
@@ -140,7 +139,6 @@ const getPriorityColor = (priority: Project['priority']) => {
 
 export default function Projects() {
     const [viewMode, setViewMode] = useState<ViewMode>('table')
-    const [searchQuery, setSearchQuery] = useState('')
     const [isLoading, setIsLoading] = useState(true)
     const [activeFilters, setActiveFilters] = useState<Array<{ id: string, label: string, value: string }>>([])
     const navigate = useNavigate()
@@ -411,11 +409,6 @@ export default function Projects() {
 
     const clearAllFilters = () => {
         setActiveFilters([])
-        setSearchQuery('')
-    }
-
-    const clearSearch = () => {
-        setSearchQuery('')
     }
 
 
@@ -647,13 +640,6 @@ export default function Projects() {
     // Filter projects based on search
     const filteredProjects = useMemo(() => {
         let result = projects.filter(project => {
-            const lowerCaseSearchQuery = searchQuery.toLowerCase();
-            const matchesSearch = project.name.toLowerCase().includes(lowerCaseSearchQuery) ||
-                project.clientName.toLowerCase().includes(lowerCaseSearchQuery) ||
-                project.type.toLowerCase().includes(lowerCaseSearchQuery) ||
-                project.methodology.toLowerCase().includes(lowerCaseSearchQuery) ||
-                project.complianceFrameworks.some(f => f.toLowerCase().includes(lowerCaseSearchQuery));
-
             const matchesFilters = Object.entries(appliedFilters).every(([key, value]) => {
                 if (!value || (Array.isArray(value) && value.length === 0)) return true
 
@@ -671,7 +657,7 @@ export default function Projects() {
                 return true
             })
 
-            return matchesSearch && matchesFilters
+            return matchesFilters
         })
 
         // Apply sorting
@@ -708,7 +694,7 @@ export default function Projects() {
         }
 
         return result
-    }, [projects, searchQuery, appliedFilters, sortConfig])
+    }, [projects, appliedFilters, sortConfig])
 
     const handleSort = (key: string) => {
         setSortConfig(current => {
@@ -770,28 +756,6 @@ export default function Projects() {
             {/* Toolbar */}
             <Card className="p-4">
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                    {/* Search */}
-                    <div className="flex-1 w-full sm:max-w-md">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input
-                                type="text"
-                                placeholder="Search projects..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-slate-900 placeholder:text-slate-400"
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={clearSearch}
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
                     <div className="flex items-center gap-2">
                         {/* Filter Button */}
                         <Button
@@ -963,7 +927,7 @@ export default function Projects() {
             )}
 
             {/* Empty State: No projects exist */}
-            {!isLoading && projects.length === 0 && !searchQuery && (
+            {!isLoading && projects.length === 0 && (
                 <Card className="flex flex-col items-center justify-center py-16 text-center">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-4">
                         <FolderKanban className="h-6 w-6 text-slate-400" />
@@ -979,15 +943,15 @@ export default function Projects() {
                 </Card>
             )}
 
-            {/* Empty State: No search results */}
-            {!isLoading && filteredProjects.length === 0 && (searchQuery || Object.keys(appliedFilters).length > 0) && projects.length > 0 && (
+            {/* Empty State: No filter results */}
+            {!isLoading && filteredProjects.length === 0 && Object.keys(appliedFilters).length > 0 && projects.length > 0 && (
                 <Card className="flex flex-col items-center justify-center py-16 text-center">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-4">
-                        <Search className="h-6 w-6 text-slate-400" />
+                        <Filter className="h-6 w-6 text-slate-400" />
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-1">No projects found</h3>
                     <p className="text-xs text-slate-500 mb-4 max-w-sm">
-                        No projects match your current filters. Try adjusting your search.
+                        No projects match your current filters. Try adjusting your filters.
                     </p>
                     <Button variant="outline" size="sm" onClick={clearAllFilters}>
                         <X className="h-4 w-4 mr-2" />

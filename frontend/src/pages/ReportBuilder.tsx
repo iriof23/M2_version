@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Search, FileText, AlertTriangle, Clock, Calendar, Target, ChevronRight, Download, Edit, ArrowUpRight, Users, Shield, Trash2, Loader2 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { FileText, AlertTriangle, Clock, Target, ChevronRight, ArrowUpRight, Users, Shield, Trash2, Loader2 } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
     AlertDialog,
@@ -18,10 +17,9 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { NewReportDialog } from '@/components/reports/NewReportDialog'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
-import { logProjectDeleted, logReportDeleted } from '@/lib/activityLog'
+import { logProjectDeleted } from '@/lib/activityLog'
 
 interface Project {
     id: string
@@ -54,7 +52,6 @@ export default function ReportBuilder() {
     const navigate = useNavigate()
     const { getToken } = useAuth()
     const { toast } = useToast()
-    const [searchQuery, setSearchQuery] = useState('')
     const [selectedProject, setSelectedProject] = useState<Project | null>(null)
     const [statusFilter, setStatusFilter] = useState<'all' | 'In Progress' | 'Planning'>('all')
     const [projectFindingsData, setProjectFindingsData] = useState<Record<string, { count: number, severity: { critical: number, high: number, medium: number, low: number } }>>({})
@@ -241,10 +238,7 @@ export default function ReportBuilder() {
 
     // Filter projects
     const filteredProjects = projects.filter(project => {
-        const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            project.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesStatus = statusFilter === 'all' || project.status === statusFilter
-        return matchesSearch && matchesStatus
+        return statusFilter === 'all' || project.status === statusFilter
     })
 
     const handleOpenReport = async (projectId: string) => {
@@ -351,99 +345,32 @@ export default function ReportBuilder() {
                         Select a project to manage findings and generate reports
                     </p>
                 </div>
-                <NewReportDialog onReportCreated={() => {
-                    // Refresh both projects and reports after a new report is created
-                    const refreshData = async () => {
-                        try {
-                            const token = await getToken()
-                            if (!token) return
-                            
-                            // Refresh projects
-                            const projectsResponse = await api.get('/v1/projects', {
-                                headers: { Authorization: `Bearer ${token}` }
-                            })
-                            
-                            if (projectsResponse.data && projectsResponse.data.length > 0) {
-                                const apiProjects = projectsResponse.data.map((p: any) => ({
-                                    id: p.id,
-                                    name: p.name,
-                                    clientName: p.client_name || 'Unknown Client',
-                                    clientLogoUrl: '',
-                                    status: p.status === 'PLANNING' ? 'Planning' : 
-                                            p.status === 'IN_PROGRESS' ? 'In Progress' : 
-                                            p.status === 'COMPLETED' ? 'Completed' : 'In Progress',
-                                    progress: 0,
-                                    findingsCount: p.finding_count || 0,
-                                    findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
-                                    teamMembers: [],
-                                    leadTester: p.lead_name || '',
-                                    startDate: p.start_date ? new Date(p.start_date) : new Date(),
-                                    endDate: p.end_date ? new Date(p.end_date) : new Date(),
-                                    lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
-                                    scope: p.description || '',
-                                    priority: 'Medium' as const
-                                }))
-                                
-                                setProjects(apiProjects)
-                            }
-                            
-                            // Refresh reports
-                            const reportsResponse = await api.get('/v1/reports/', {
-                                headers: { Authorization: `Bearer ${token}` }
-                            })
-                            
-                            const reportsByProject: Record<string, Report[]> = {}
-                            reportsResponse.data.forEach((report: Report) => {
-                                if (!reportsByProject[report.project_id]) {
-                                    reportsByProject[report.project_id] = []
-                                }
-                                reportsByProject[report.project_id].push(report)
-                            })
-                            
-                            setProjectReports(reportsByProject)
-                        } catch (error) {
-                            console.error('Failed to refresh data:', error)
-                        }
-                    }
-                    refreshData()
-                }} />
             </div>
 
             {/* Two-Column Layout - Premium Split View */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
                 {/* Left Column - Projects List (4 cols) */}
                 <div className="lg:col-span-4 flex flex-col gap-4 min-h-0">
-                    {/* Search and Filters */}
-                    <div className="space-y-3 flex-shrink-0">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                placeholder="Search projects..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 h-10 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400"
-                            />
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                            {['all', 'In Progress', 'Planning'].map((status) => (
-                                <button
-                                    key={status}
-                                    onClick={() => setStatusFilter(status as any)}
-                                    className={cn(
-                                        'px-3 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap',
-                                        statusFilter === status
-                                            ? 'bg-emerald-600 text-white shadow-sm'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                                    )}
-                                >
-                                    {status === 'all' ? 'All' : status}
-                                </button>
-                            ))}
-                        </div>
+                    {/* Filters */}
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide flex-shrink-0">
+                        {['all', 'In Progress', 'Planning'].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => setStatusFilter(status as any)}
+                                className={cn(
+                                    'px-3 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap',
+                                    statusFilter === status
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                                )}
+                            >
+                                {status === 'all' ? 'All' : status}
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Projects List - Refined */}
-                    <div className="space-y-2 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+                    {/* Projects List - Premium Navigation Rail */}
+                    <div className="space-y-1 overflow-y-auto flex-1 pr-2 scrollbar-thin">
                         {filteredProjects.map((project) => {
                             const isActive = selectedProject?.id === project.id
                             return (
@@ -451,22 +378,35 @@ export default function ReportBuilder() {
                                     key={project.id}
                                     onClick={() => setSelectedProject(project)}
                                     className={cn(
-                                        'p-3 rounded-xl cursor-pointer transition-all duration-200 group',
+                                        'relative p-3 rounded-xl cursor-pointer transition-all duration-200 group',
                                         isActive
-                                            ? 'bg-emerald-50 ring-1 ring-emerald-200 shadow-sm'
+                                            ? 'bg-emerald-50/80'
                                             : 'hover:bg-slate-50'
                                     )}
                                 >
-                                    <div className="flex items-center gap-3">
+                                    {/* Active Indicator Bar */}
+                                    <div className={cn(
+                                        "absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-full transition-all duration-200",
+                                        isActive 
+                                            ? "h-8 bg-emerald-500" 
+                                            : "h-0 bg-transparent group-hover:h-4 group-hover:bg-slate-300"
+                                    )} />
+                                    
+                                    <div className="flex items-center gap-3 pl-2">
                                         <Avatar className="h-10 w-10 rounded-xl flex-shrink-0">
-                                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
+                                            <AvatarFallback className={cn(
+                                                "rounded-xl text-white text-xs font-semibold transition-all",
+                                                isActive 
+                                                    ? "bg-gradient-to-br from-emerald-500 to-teal-600" 
+                                                    : "bg-slate-400 group-hover:bg-gradient-to-br group-hover:from-emerald-500 group-hover:to-teal-600"
+                                            )}>
                                                 {project.name.slice(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="min-w-0 flex-1">
                                             <h3 className={cn(
-                                                "text-sm font-semibold truncate",
-                                                isActive ? "text-emerald-700" : "text-slate-900 group-hover:text-emerald-700"
+                                                "text-sm font-semibold truncate transition-colors",
+                                                isActive ? "text-emerald-700" : "text-slate-700 group-hover:text-slate-900"
                                             )}>
                                                 {project.name}
                                             </h3>
@@ -474,7 +414,12 @@ export default function ReportBuilder() {
                                                 {project.clientName}
                                             </p>
                                         </div>
-                                        {isActive && <ChevronRight className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                                        <ChevronRight className={cn(
+                                            "w-4 h-4 flex-shrink-0 transition-all",
+                                            isActive 
+                                                ? "text-emerald-500 opacity-100" 
+                                                : "text-slate-300 opacity-0 group-hover:opacity-100"
+                                        )} />
                                     </div>
                                 </div>
                             )
@@ -505,23 +450,19 @@ export default function ReportBuilder() {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Button variant="outline" size="sm" className="text-slate-600 border-slate-200 h-9">
-                                        <Download className="w-4 h-4 mr-2" />
-                                        Export
-                                    </Button>
                                     <Button 
-                                        variant="outline" 
+                                        variant="ghost" 
                                         size="sm" 
-                                        className="text-red-600 border-red-200 hover:bg-red-50 h-9"
+                                        className="text-slate-500 hover:text-red-600 hover:bg-red-50 h-9"
                                         onClick={() => setDeleteDialogOpen(true)}
                                     >
-                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        <Trash2 className="w-4 h-4 mr-1.5" />
                                         Delete
                                     </Button>
                                     <Button 
                                         onClick={() => handleOpenReport(selectedProject.id)}
                                         disabled={isOpeningEditor}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9 px-4"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-5 shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/30 transition-all"
                                     >
                                         {isOpeningEditor ? (
                                             <>
@@ -530,8 +471,8 @@ export default function ReportBuilder() {
                                             </>
                                         ) : (
                                             <>
-                                        Open Editor
-                                        <ArrowUpRight className="w-4 h-4 ml-2" />
+                                                Open Editor
+                                                <ArrowUpRight className="w-4 h-4 ml-2" />
                                             </>
                                         )}
                                     </Button>

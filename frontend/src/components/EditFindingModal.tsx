@@ -56,6 +56,7 @@ interface EditFindingModalProps {
     onUpdate: (finding: ProjectFinding) => void;
     onDelete: () => void;
     isEditable?: boolean;
+    isSystemLibrary?: boolean;
 }
 
 const severityConfig = {
@@ -74,7 +75,7 @@ const formatCvssScore = (score?: number | null) => {
     return Number(score).toFixed(1);
 };
 
-export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete, isEditable = false }: EditFindingModalProps) {
+export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete, isEditable = false, isSystemLibrary = false }: EditFindingModalProps) {
     const [localFinding, setLocalFinding] = useState<ProjectFinding | null>(finding);
     const [isDirty, setIsDirty] = useState(false);
     const [newAssetUrl, setNewAssetUrl] = useState('');
@@ -476,25 +477,27 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                 />
                             </section>
 
-                            {/* Evidence */}
-                            <section className="pt-8 border-t border-slate-100">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <Camera className="w-4 h-4 text-slate-400" />
-                                        <h3 className="text-sm font-semibold text-slate-900">Proof of Concept & Evidence</h3>
+                            {/* Evidence - Only show for custom findings */}
+                            {!isSystemLibrary && (
+                                <section className="pt-8 border-t border-slate-100">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <Camera className="w-4 h-4 text-slate-400" />
+                                            <h3 className="text-sm font-semibold text-slate-900">Proof of Concept & Evidence</h3>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 uppercase tracking-wide">Optional</span>
                                     </div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wide">Optional</span>
-                                </div>
-                                <div className="border-2 border-dashed border-emerald-100 bg-emerald-50/20 rounded-xl p-1 hover:border-emerald-200 transition-colors">
-                                        <Editor
-                                            content={localFinding.evidence || ''}
-                                            onChange={(html) => handleChange({ evidence: html })}
-                                        placeholder="Add screenshots, code snippets, or step-by-step reproduction..."
-                                            variant="evidence"
-                                        className="min-h-[150px]"
-                                        />
-                                </div>
-                            </section>
+                                    <div className="border-2 border-dashed border-emerald-100 bg-emerald-50/20 rounded-xl p-1 hover:border-emerald-200 transition-colors">
+                                            <Editor
+                                                content={localFinding.evidence || ''}
+                                                onChange={(html) => handleChange({ evidence: html })}
+                                            placeholder="Add screenshots, code snippets, or step-by-step reproduction..."
+                                                variant="evidence"
+                                            className="min-h-[150px]"
+                                            />
+                                    </div>
+                                </section>
+                            )}
 
                                 {/* References */}
                             <section className="pt-8 border-t border-slate-100">
