@@ -246,20 +246,17 @@ export function EditFindingSheet({ finding, isOpen, onClose, onUpdate, onDelete 
                                                 value={localFinding.severity}
                                                 onValueChange={(value) => handleChange({ severity: value as any })}
                                             >
-                                                <SelectTrigger className={cn(
-                                                    "h-9 bg-white text-sm font-medium border",
-                                                    currentSeverity.border, currentSeverity.color
-                                                )}>
-                                                    <SelectValue />
+                                                <SelectTrigger className="h-9 bg-white text-sm font-medium border-slate-200 !text-slate-900 [&>span]:!text-slate-900">
+                                                    <SelectValue placeholder="Select severity" className="!text-slate-900" />
                                                 </SelectTrigger>
                                                 <SelectContent className="bg-white border-slate-200">
                                                     {Object.entries(severityConfig).map(([level, config]) => {
                                                         const Icon = config.icon;
                                                         return (
-                                                            <SelectItem key={level} value={level} className="text-sm">
+                                                            <SelectItem key={level} value={level} className="text-sm !text-slate-900">
                                                                 <div className="flex items-center gap-2">
-                                                                    <Icon className={cn("w-3.5 h-3.5", config.color)} />
-                                                                    <span className={config.color}>{level}</span>
+                                                                    <Icon className={cn("w-3.5 h-3.5 text-slate-600")} />
+                                                                    <span className="text-slate-900">{level}</span>
                                                                 </div>
                                                             </SelectItem>
                                                         );

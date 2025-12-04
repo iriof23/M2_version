@@ -218,18 +218,18 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                     </>
                                 )}
                             </div>
-                        </div>
+                    </div>
                         
                         {/* Actions */}
                         <div className="flex items-center gap-2">
                             {onDelete && isEditable && (
                                 <Button variant="ghost" size="sm" onClick={onDelete} className="text-slate-400 hover:text-red-600 hover:bg-red-50">
                                     <Trash2 className="w-4 h-4" />
-                                </Button>
+                        </Button>
                             )}
                             <Button variant="ghost" size="sm" onClick={handleClose} className="text-slate-500 hover:text-slate-900 text-xs">
                                 Cancel
-                            </Button>
+                        </Button>
                             <Button size="sm" onClick={handleSave} disabled={!isDirty} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm text-xs px-4">
                                 <Save className="w-3.5 h-3.5 mr-1.5" />
                                 Save
@@ -254,23 +254,20 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                     <div>
                                         <label className="text-[10px] text-slate-500 mb-1.5 block">Severity</label>
                                         <Select
-                                            value={localFinding.severity}
+                                        value={localFinding.severity}
                                             onValueChange={(value) => handleChange({ severity: value as any })}
                                         >
-                                            <SelectTrigger className={cn(
-                                                "h-9 bg-white text-sm font-medium border",
-                                                currentSeverity.border, currentSeverity.color
-                                            )}>
-                                                <SelectValue />
+                                            <SelectTrigger className="h-9 bg-white text-sm font-medium border-slate-200 !text-slate-900 [&>span]:!text-slate-900">
+                                                <SelectValue placeholder="Select severity" className="!text-slate-900" />
                                             </SelectTrigger>
                                             <SelectContent className="bg-white border-slate-200">
                                                 {Object.entries(severityConfig).map(([level, config]) => {
                                                     const Icon = config.icon;
                                                     return (
-                                                        <SelectItem key={level} value={level} className="text-sm">
+                                                        <SelectItem key={level} value={level} className="text-sm !text-slate-900">
                                                             <div className="flex items-center gap-2">
-                                                                <Icon className={cn("w-3.5 h-3.5", config.color)} />
-                                                                <span className={config.color}>{level}</span>
+                                                                <Icon className={cn("w-3.5 h-3.5 text-slate-600")} />
+                                                                <span className="text-slate-900">{level}</span>
                                                             </div>
                                                         </SelectItem>
                                                     );
@@ -281,7 +278,7 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                     <div>
                                         <label className="text-[10px] text-slate-500 mb-1.5 block">Status</label>
                                         <Select
-                                            value={localFinding.status}
+                                        value={localFinding.status}
                                             onValueChange={(value) => handleChange({ status: value as any })}
                                         >
                                             <SelectTrigger className="h-9 bg-white text-sm font-medium border-slate-200 text-slate-700">
@@ -309,7 +306,7 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                 <div>
                                     <label className="text-[10px] text-slate-500 mb-1.5 block">CVSS Score</label>
                                     <div className="flex gap-1.5">
-                                        <Input
+                                <Input
                                             value={cvssMeta.score}
                                             readOnly
                                             className="h-8 font-mono text-[12px] bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 flex-1"
@@ -342,7 +339,7 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                                        Affected Assets
+                                    Affected Assets
                                     </h4>
                                     <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
                                         {localFinding.affectedAssets.length}
@@ -420,30 +417,30 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                     <div className="flex-1 overflow-y-auto bg-white scrollbar-thin">
                         <div className="p-10 max-w-3xl mx-auto space-y-10 pb-24">
                             
-                            {/* Description */}
+                                {/* Description */}
                             <section>
                                 <div className="flex items-center gap-2 mb-4">
                                     <FileText className="w-4 h-4 text-slate-400" />
                                     <h3 className="text-sm font-semibold text-slate-900">Description</h3>
                                 </div>
-                                <Editor
-                                    content={localFinding.description}
-                                    onChange={(html) => handleChange({ description: html })}
+                                        <Editor
+                                            content={localFinding.description}
+                                            onChange={(html) => handleChange({ description: html })}
                                     placeholder="Describe the vulnerability, its impact, and how it was discovered..."
                                     frameless
                                     className="min-h-[120px]"
-                                />
+                                        />
                             </section>
 
-                            {/* Remediation */}
+                                {/* Remediation */}
                             <section className="pt-8 border-t border-slate-100">
                                 <div className="flex items-center gap-2 mb-4">
                                     <Wrench className="w-4 h-4 text-slate-400" />
                                     <h3 className="text-sm font-semibold text-slate-900">Remediation</h3>
                                 </div>
-                                <Editor
-                                    content={localFinding.recommendations}
-                                    onChange={(html) => handleChange({ recommendations: html })}
+                                        <Editor
+                                            content={localFinding.recommendations}
+                                            onChange={(html) => handleChange({ recommendations: html })}
                                     placeholder="Provide clear steps to fix or mitigate this vulnerability..."
                                     frameless
                                     className="min-h-[120px]"
@@ -460,17 +457,17 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wide">Optional</span>
                                 </div>
                                 <div className="border-2 border-dashed border-emerald-100 bg-emerald-50/20 rounded-xl p-1 hover:border-emerald-200 transition-colors">
-                                    <Editor
-                                        content={localFinding.evidence || ''}
-                                        onChange={(html) => handleChange({ evidence: html })}
+                                        <Editor
+                                            content={localFinding.evidence || ''}
+                                            onChange={(html) => handleChange({ evidence: html })}
                                         placeholder="Add screenshots, code snippets, or step-by-step reproduction..."
-                                        variant="evidence"
+                                            variant="evidence"
                                         className="min-h-[150px]"
-                                    />
+                                        />
                                 </div>
                             </section>
-                            
-                            {/* References */}
+
+                                {/* References */}
                             <section className="pt-8 border-t border-slate-100">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -479,13 +476,13 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
                                     </div>
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wide">Optional</span>
                                 </div>
-                                <Editor
-                                    content={localFinding.references || ''}
-                                    onChange={(html) => handleChange({ references: html })}
+                                        <Editor
+                                            content={localFinding.references || ''}
+                                            onChange={(html) => handleChange({ references: html })}
                                     placeholder="Add links to OWASP, CVE, or other relevant resources..."
                                     frameless
                                     className="min-h-[80px]"
-                                />
+                                        />
                             </section>
                         </div>
                     </div>
