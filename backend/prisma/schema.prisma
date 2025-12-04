@@ -118,6 +118,7 @@ model License {
 model Client {
   id           String  @id @default(uuid())
   name         String
+  code         String?  // Client ticker code for finding IDs (e.g., "ACME" for "Acme Corp")
   contactName  String?
   contactEmail String?
   contactPhone String?
@@ -139,8 +140,12 @@ model Client {
   updatedAt DateTime @updatedAt
 
   projects Project[]
+  
+  // Track finding counter for sequential IDs
+  findingCounter Int @default(0)  // Current highest finding number for this client
 
   @@index([organizationId])
+  @@index([code])
 }
 
 // Project model
@@ -165,6 +170,12 @@ model Project {
   leadId String
   lead   User   @relation(fields: [leadId], references: [id])
 
+  // Retest relationship
+  isRetest        Boolean  @default(false)  // True if this project is a retest
+  parentProjectId String?  // Reference to the original project (if this is a retest)
+  parentProject   Project? @relation("ProjectRetests", fields: [parentProjectId], references: [id])
+  retests         Project[] @relation("ProjectRetests")  // Child retest projects
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -175,6 +186,7 @@ model Project {
   @@index([clientId])
   @@index([leadId])
   @@index([status])
+  @@index([parentProjectId])
 }
 
 enum ProjectStatus {

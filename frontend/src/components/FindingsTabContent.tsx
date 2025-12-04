@@ -19,6 +19,7 @@ import { useToast } from '@/components/ui/use-toast'
 
 interface ProjectFinding {
     id: string
+    referenceId?: string  // Professional Finding ID (e.g., "ACME-001")
     owaspId: string
     title: string
     severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational'
@@ -31,6 +32,12 @@ interface ProjectFinding {
     references?: string
     affectedAssets: Array<{ url: string; description: string; instanceCount: number }>
     screenshots: Array<{ id: string; url: string; caption: string }>
+    project?: {
+        client?: {
+            name?: string
+            code?: string
+        }
+    }
 }
 
 interface FindingsTabContentProps {
@@ -80,6 +87,7 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
         
         return {
             id: apiFinding.id,
+            referenceId: apiFinding.reference_id || undefined,  // Professional Finding ID (e.g., "ACME-001")
             owaspId: apiFinding.cve_id || '',
             title: apiFinding.title,
             severity: mapSeverity(apiFinding.severity),
@@ -94,7 +102,13 @@ export default function FindingsTabContent({ projectId: propProjectId, onUpdate 
             evidence: apiFinding.evidence || undefined,  // PoC/Evidence content
             references: apiFinding.references || undefined,
             affectedAssets: affectedAssets,
-            screenshots: []
+            screenshots: [],
+            project: {
+                client: {
+                    name: apiFinding.client_name || undefined,
+                    code: apiFinding.client_code || undefined,
+                }
+            }
         }
     }
 

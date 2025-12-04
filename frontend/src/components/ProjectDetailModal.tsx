@@ -16,7 +16,9 @@ import {
     Loader2,
     Calendar,
     TrendingUp,
-    Flame
+    Flame,
+    RotateCcw,
+    GitBranch
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { format } from 'date-fns'
@@ -64,6 +66,12 @@ interface Project {
     lastActivityDate: Date
     createdAt: Date
     updatedAt: Date
+    
+    // Retest fields
+    isRetest?: boolean
+    parentProjectId?: string
+    parentProjectName?: string
+    retestCount?: number
 }
 
 interface ProjectDetailModalProps {
@@ -73,6 +81,7 @@ interface ProjectDetailModalProps {
     onEdit: (project: Project) => void
     onGenerateReport: (project: Project) => void
     onDelete: (project: Project) => void
+    onStartRetest?: (project: Project) => void
 }
 
 export default function ProjectDetailModal({
@@ -81,7 +90,8 @@ export default function ProjectDetailModal({
     onClose,
     onEdit,
     onGenerateReport,
-    onDelete
+    onDelete,
+    onStartRetest
 }: ProjectDetailModalProps) {
     const { getToken } = useAuth()
     const [loadingFindings, setLoadingFindings] = useState(false)
@@ -213,6 +223,13 @@ export default function ProjectDetailModal({
                                     </p>
                                 </div>
                                 <div className="flex gap-1.5 shrink-0">
+                                    {/* Retest Badge */}
+                                    {project.isRetest && (
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border border-amber-200 bg-amber-50 text-amber-700 flex items-center gap-1">
+                                            <GitBranch className="w-3 h-3" />
+                                            Retest
+                                        </span>
+                                    )}
                                     <span className={cn(
                                         "px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border",
                                         getStatusStyle(project.status)
@@ -227,6 +244,14 @@ export default function ProjectDetailModal({
                                     </span>
                                 </div>
                             </div>
+
+                            {/* Parent Project Link (if this is a retest) */}
+                            {project.isRetest && project.parentProjectName && (
+                                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1.5 bg-amber-50/50 px-2 py-1 rounded-md w-fit">
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>Retest of: <span className="font-medium">{project.parentProjectName}</span></span>
+                                </p>
+                            )}
 
                             {/* Description as subtitle */}
                             {project.description && (
@@ -429,6 +454,18 @@ export default function ProjectDetailModal({
                         <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-slate-600">
                             Close
                         </Button>
+                        {/* Start Retest button - only show if not already a retest */}
+                        {!project.isRetest && onStartRetest && (
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => onStartRetest(project)}
+                                className="text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                                Retest
+                            </Button>
+                        )}
                         <Button 
                             variant="outline" 
                             size="sm"

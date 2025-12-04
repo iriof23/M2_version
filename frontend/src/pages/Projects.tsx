@@ -113,6 +113,12 @@ export interface Project {
     lastActivityDate: Date
     createdAt: Date
     updatedAt: Date
+    
+    // Retest fields
+    isRetest?: boolean
+    parentProjectId?: string
+    parentProjectName?: string
+    retestCount?: number
 }
 
 
@@ -307,6 +313,11 @@ export default function Projects() {
                             methodology: p.methodology || 'OWASP Testing Guide v4',
                             leadTester: p.lead_name || '',
                             complianceFrameworks: parsedComplianceFrameworks,
+                            // Retest fields
+                            isRetest: p.is_retest || false,
+                            parentProjectId: p.parent_project_id || undefined,
+                            parentProjectName: p.parent_project_name || undefined,
+                            retestCount: p.retest_count || 0,
                         }
                     })
                     
@@ -458,6 +469,81 @@ export default function Projects() {
 
     const handleDeleteProject = (project: Project) => {
         setDeletingProject(project)
+    }
+
+    const [isCreatingRetest, setIsCreatingRetest] = useState(false)
+
+    const handleStartRetest = async (project: Project) => {
+        setIsCreatingRetest(true)
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast({
+                    title: "Error",
+                    description: "Authentication required",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            const response = await api.post(`/projects/${project.id}/retest`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (response.data) {
+                // Map the new retest project to the frontend format
+                const newRetest: Project = {
+                    id: response.data.id,
+                    name: response.data.name,
+                    clientId: response.data.client_id,
+                    clientName: response.data.client_name,
+                    clientLogoUrl: '',
+                    type: (response.data.project_type || 'Web App') as Project['type'],
+                    status: mapApiStatus(response.data.status),
+                    priority: (response.data.priority || 'Medium') as Project['priority'],
+                    startDate: response.data.start_date ? new Date(response.data.start_date) : new Date(),
+                    endDate: response.data.end_date ? new Date(response.data.end_date) : new Date(),
+                    progress: 0,
+                    findingsCount: response.data.finding_count || 0,
+                    findingsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+                    teamMembers: [],
+                    lastActivity: 'Just now',
+                    lastActivityDate: new Date(response.data.updated_at),
+                    createdAt: new Date(response.data.created_at),
+                    updatedAt: new Date(response.data.updated_at),
+                    description: response.data.description || '',
+                    scope: [],
+                    methodology: response.data.methodology || 'OWASP Testing Guide v4',
+                    leadTester: response.data.lead_name || '',
+                    complianceFrameworks: [],
+                    isRetest: true,
+                    parentProjectId: response.data.parent_project_id,
+                    parentProjectName: response.data.parent_project_name,
+                    retestCount: 0,
+                }
+
+                // Add the new retest project to the list
+                setProjects(prev => [newRetest, ...prev])
+                setViewingProject(null)
+
+                toast({
+                    title: "Retest Created",
+                    description: `"${newRetest.name}" has been created with ${response.data.finding_count} findings cloned for re-verification.`,
+                })
+
+                // Navigate to the new retest project
+                navigate(`/projects`)
+            }
+        } catch (error: any) {
+            console.error('Failed to create retest:', error)
+            toast({
+                title: "Error",
+                description: error.response?.data?.detail || "Failed to create retest. Please try again.",
+                variant: "destructive",
+            })
+        } finally {
+            setIsCreatingRetest(false)
+        }
     }
 
     const [isDeletingProject, setIsDeletingProject] = useState(false)
@@ -988,6 +1074,7 @@ export default function Projects() {
                     setViewingProject(null)
                     handleDeleteProject(project)
                 }}
+                onStartRetest={handleStartRetest}
             />
 
             {/* Delete Confirmation Dialog */}

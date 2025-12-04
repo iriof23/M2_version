@@ -1,6 +1,7 @@
 """
 Client management routes
 """
+import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
@@ -13,9 +14,63 @@ from app.db import db
 router = APIRouter()
 
 
+def generate_client_code(name: str) -> str:
+    """
+    Generate a short client code from the company name.
+    Examples:
+        - "Acme Corporation" -> "ACME"
+        - "Tesla Motors" -> "TSLA"
+        - "Google Inc" -> "GOOG"
+        - "International Business Machines" -> "IBM"
+    """
+    # Remove special characters and convert to uppercase
+    clean_name = re.sub(r'[^a-zA-Z\s]', '', name).upper()
+    words = clean_name.split()
+    
+    if not words:
+        return "CLI"  # Default fallback
+    
+    if len(words) == 1:
+        # Single word: take first 4 characters
+        return words[0][:4]
+    elif len(words) == 2:
+        # Two words: first 2 chars of each
+        return words[0][:2] + words[1][:2]
+    else:
+        # Multiple words: first char of each (up to 4)
+        return ''.join(word[0] for word in words[:4])
+
+
+async def get_unique_client_code(base_code: str, organization_id: Optional[str]) -> str:
+    """
+    Ensure the client code is unique within the organization.
+    If "ACME" exists, try "ACM1", "ACM2", etc.
+    """
+    code = base_code
+    counter = 1
+    
+    while True:
+        where_clause = {"code": code}
+        if organization_id:
+            where_clause["organizationId"] = organization_id
+            
+        existing = await db.client.find_first(where=where_clause)
+        if not existing:
+            return code
+        
+        # Code exists, try with number suffix
+        code = f"{base_code[:3]}{counter}"
+        counter += 1
+        
+        if counter > 99:  # Safety limit
+            import uuid
+            return base_code[:2] + uuid.uuid4().hex[:2].upper()
+
+
 # Request/Response models
 class ClientCreate(BaseModel):
     name: str
+    code: Optional[str] = None  # Optional: auto-generated if not provided
     contact_name: Optional[str] = None
     contact_email: Optional[EmailStr] = None
     contact_phone: Optional[str] = None
@@ -31,6 +86,7 @@ class ClientCreate(BaseModel):
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
+    code: Optional[str] = None  # Can be manually updated
     contact_name: Optional[str] = None
     contact_email: Optional[EmailStr] = None
     contact_phone: Optional[str] = None
@@ -47,6 +103,7 @@ class ClientUpdate(BaseModel):
 class ClientResponse(BaseModel):
     id: str
     name: str
+    code: Optional[str]  # Client ticker code (e.g., "ACME")
     contact_name: Optional[str]
     contact_email: Optional[str]
     contact_phone: Optional[str]
@@ -59,6 +116,7 @@ class ClientResponse(BaseModel):
     tags: Optional[str]
     notes: Optional[str]
     organization_id: Optional[str]
+    finding_counter: int  # Current finding count for this client
     created_at: str
     updated_at: str
 
@@ -87,6 +145,7 @@ async def list_clients(
         ClientResponse(
             id=client.id,
             name=client.name,
+            code=client.code,
             contact_name=client.contactName,
             contact_email=client.contactEmail,
             contact_phone=client.contactPhone,
@@ -99,6 +158,7 @@ async def list_clients(
             tags=client.tags,
             notes=client.notes,
             organization_id=client.organizationId,
+            finding_counter=client.findingCounter or 0,
             created_at=client.createdAt.isoformat(),
             updated_at=client.updatedAt.isoformat(),
         )
@@ -112,9 +172,19 @@ async def create_client(
     current_user = Depends(get_current_user)
 ):
     """Create a new client"""
+    # Generate or use provided client code
+    if client_data.code:
+        # Use provided code (uppercase)
+        client_code = client_data.code.upper()
+    else:
+        # Auto-generate from name
+        base_code = generate_client_code(client_data.name)
+        client_code = await get_unique_client_code(base_code, current_user.organizationId)
+    
     client = await db.client.create(
         data={
             "name": client_data.name,
+            "code": client_code,
             "contactName": client_data.contact_name,
             "contactEmail": client_data.contact_email,
             "contactPhone": client_data.contact_phone,
@@ -127,12 +197,14 @@ async def create_client(
             "tags": client_data.tags,
             "notes": client_data.notes,
             "organizationId": current_user.organizationId,
+            "findingCounter": 0,
         }
     )
     
     return ClientResponse(
         id=client.id,
         name=client.name,
+        code=client.code,
         contact_name=client.contactName,
         contact_email=client.contactEmail,
         contact_phone=client.contactPhone,
@@ -145,6 +217,7 @@ async def create_client(
         tags=client.tags,
         notes=client.notes,
         organization_id=client.organizationId,
+        finding_counter=client.findingCounter or 0,
         created_at=client.createdAt.isoformat(),
         updated_at=client.updatedAt.isoformat(),
     )
@@ -174,6 +247,7 @@ async def get_client(
     return ClientResponse(
         id=client.id,
         name=client.name,
+        code=client.code,
         contact_name=client.contactName,
         contact_email=client.contactEmail,
         contact_phone=client.contactPhone,
@@ -186,6 +260,7 @@ async def get_client(
         tags=client.tags,
         notes=client.notes,
         organization_id=client.organizationId,
+        finding_counter=client.findingCounter or 0,
         created_at=client.createdAt.isoformat(),
         updated_at=client.updatedAt.isoformat(),
     )
@@ -217,6 +292,8 @@ async def update_client(
     update_data = {}
     if client_data.name is not None:
         update_data["name"] = client_data.name
+    if client_data.code is not None:
+        update_data["code"] = client_data.code.upper()
     if client_data.contact_name is not None:
         update_data["contactName"] = client_data.contact_name
     if client_data.contact_email is not None:
@@ -248,6 +325,7 @@ async def update_client(
     return ClientResponse(
         id=updated_client.id,
         name=updated_client.name,
+        code=updated_client.code,
         contact_name=updated_client.contactName,
         contact_email=updated_client.contactEmail,
         contact_phone=updated_client.contactPhone,
@@ -260,6 +338,7 @@ async def update_client(
         tags=updated_client.tags,
         notes=updated_client.notes,
         organization_id=updated_client.organizationId,
+        finding_counter=updated_client.findingCounter or 0,
         created_at=updated_client.createdAt.isoformat(),
         updated_at=updated_client.updatedAt.isoformat(),
     )

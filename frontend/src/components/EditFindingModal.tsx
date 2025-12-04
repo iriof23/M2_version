@@ -30,6 +30,7 @@ import CVSSCalculator from './CVSSCalculator';
 
 export interface ProjectFinding {
     id: string;
+    referenceId?: string;  // Professional Finding ID (e.g., "ACME-001")
     owaspId: string;
     title: string;
     severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
@@ -45,6 +46,7 @@ export interface ProjectFinding {
     project?: {
         client?: {
             name?: string;
+            code?: string;
         };
     };
 }
@@ -86,12 +88,16 @@ export function EditFindingModal({ finding, isOpen, onClose, onUpdate, onDelete,
     });
 
     const generateFindingId = (): string => {
-        if (finding?.references) return finding.references;
-        let clientPrefix = finding?.project?.client?.name?.slice(0, 3).toUpperCase();
+        // Use the official referenceId from the API if available
+        if (finding?.referenceId) return finding.referenceId;
+        
+        // Fallback: Generate a temporary ID from client code or name
+        let clientPrefix = finding?.project?.client?.code || 
+                          finding?.project?.client?.name?.slice(0, 3).toUpperCase();
         if (!clientPrefix && finding?.title) {
             clientPrefix = finding.title.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
         }
-        if (!clientPrefix) clientPrefix = 'GEN';
+        if (!clientPrefix) clientPrefix = 'NEW';
         const suffix = finding?.id?.replace(/[^A-Za-z0-9]/g, '').slice(-3).toUpperCase() || '000';
         return `${clientPrefix}-${suffix}`;
     };

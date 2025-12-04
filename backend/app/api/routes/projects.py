@@ -73,6 +73,11 @@ class ProjectResponse(BaseModel):
     finding_count: int
     report_count: int
     members: Optional[List[ProjectMemberInResponse]] = None
+    # Retest fields
+    is_retest: bool = False
+    parent_project_id: Optional[str] = None
+    parent_project_name: Optional[str] = None
+    retest_count: int = 0  # Number of retests created from this project
 
 
 class AvailableMemberResponse(BaseModel):
@@ -147,6 +152,8 @@ async def list_projects(
             "lead": True,
             "findings": True,  # Include to get count
             "reports": True,   # Include to get count
+            "parentProject": True,  # For retest info
+            "retests": True,  # Count of retests
         },
         order={"createdAt": "desc"}
     )
@@ -186,6 +193,10 @@ async def list_projects(
             updated_at=project.updatedAt.isoformat(),
             finding_count=len(project.findings),
             report_count=len(project.reports),
+            is_retest=project.isRetest or False,
+            parent_project_id=project.parentProjectId,
+            parent_project_name=project.parentProject.name if project.parentProject else None,
+            retest_count=len(project.retests) if project.retests else 0,
         )
         for project in projects
     ]
@@ -266,6 +277,10 @@ async def create_project(
         updated_at=project_with_counts.updatedAt.isoformat(),
         finding_count=len(project_with_counts.findings),
         report_count=len(project_with_counts.reports),
+        is_retest=False,  # New projects are not retests
+        parent_project_id=None,
+        parent_project_name=None,
+        retest_count=0,
     )
 
 
@@ -359,8 +374,10 @@ async def get_project(
                     "user": True
                 }
             },
-                    "findings": True,
-                    "reports": True,
+            "findings": True,
+            "reports": True,
+            "parentProject": True,  # For retest info
+            "retests": True,  # Count of retests
         }
     )
     
@@ -413,6 +430,10 @@ async def get_project(
         finding_count=len(project.findings) if project.findings else 0,
         report_count=len(project.reports) if project.reports else 0,
         members=members,
+        is_retest=project.isRetest or False,
+        parent_project_id=project.parentProjectId,
+        parent_project_name=project.parentProject.name if project.parentProject else None,
+        retest_count=len(project.retests) if project.retests else 0,
     )
 
 
@@ -470,8 +491,10 @@ async def update_project(
         include={
             "client": True,
             "lead": True,
-                    "findings": True,
-                    "reports": True,
+            "findings": True,
+            "reports": True,
+            "parentProject": True,
+            "retests": True,
         }
     )
     
@@ -495,6 +518,10 @@ async def update_project(
         updated_at=updated_project.updatedAt.isoformat(),
         finding_count=len(updated_project.findings) if updated_project.findings else 0,
         report_count=len(updated_project.reports) if updated_project.reports else 0,
+        is_retest=updated_project.isRetest or False,
+        parent_project_id=updated_project.parentProjectId,
+        parent_project_name=updated_project.parentProject.name if updated_project.parentProject else None,
+        retest_count=len(updated_project.retests) if updated_project.retests else 0,
     )
 
 
@@ -813,4 +840,150 @@ async def update_project_member_role(
         userEmail=updated_member.user.email,
         role=updated_member.role,
         assignedAt=updated_member.assignedAt.isoformat(),
+    )
+
+
+# ============== Retest Workflow Endpoints ==============
+
+@router.post("/{project_id}/retest", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+async def create_retest(
+    project_id: str,
+    current_user = Depends(get_current_user)
+):
+    """
+    Create a retest project from an existing project.
+    
+    This will:
+    1. Create a new project with name: "{Original Name} - Retest"
+    2. Link to parent project via parentProjectId
+    3. Clone ALL findings with:
+       - Same referenceId (e.g., ACME-001 stays ACME-001)
+       - Status reset to OPEN
+       - Clear evidence (fresh proof needed)
+       - Keep description, remediation, severity, CVSS
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Fetch the original project with findings
+    original_project = await db.project.find_unique(
+        where={"id": project_id},
+        include={
+            "client": True,
+            "lead": True,
+            "findings": True,
+        }
+    )
+    
+    if not original_project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # Check organization access
+    if current_user.organizationId and original_project.client.organizationId != current_user.organizationId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    # Count existing retests to number them (e.g., "Project - Retest 2")
+    existing_retests = await db.project.count(
+        where={"parentProjectId": project_id}
+    )
+    
+    retest_suffix = " - Retest" if existing_retests == 0 else f" - Retest {existing_retests + 1}"
+    
+    logger.info(f"Creating retest for project '{original_project.name}' with {len(original_project.findings)} findings")
+    
+    # Create the retest project
+    retest_project = await db.project.create(
+        data={
+            "name": f"{original_project.name}{retest_suffix}",
+            "description": f"Retest of: {original_project.name}",
+            "clientId": original_project.clientId,
+            "leadId": current_user.id,
+            "status": "IN_PROGRESS",  # Retests typically start in progress
+            "projectType": original_project.projectType,
+            "scope": original_project.scope,
+            "methodology": original_project.methodology,
+            "complianceFrameworks": original_project.complianceFrameworks,
+            "priority": original_project.priority,
+            "isRetest": True,
+            "parentProjectId": project_id,
+        },
+        include={
+            "client": True,
+            "lead": True,
+        }
+    )
+    
+    logger.info(f"Created retest project '{retest_project.name}' (ID: {retest_project.id})")
+    
+    # Clone all findings from the original project
+    cloned_findings_count = 0
+    for finding in original_project.findings:
+        await db.finding.create(
+            data={
+                "referenceId": finding.referenceId,  # CRITICAL: Keep the same Finding ID!
+                "title": finding.title,
+                "description": finding.description,
+                "severity": finding.severity,
+                "cvssScore": finding.cvssScore,
+                "cvssVector": finding.cvssVector,
+                "cveId": finding.cveId,
+                "remediation": finding.remediation,
+                "references": finding.references,
+                "affectedSystems": finding.affectedSystems,
+                "affectedAssetsJson": finding.affectedAssetsJson,
+                "affectedAssetsCount": finding.affectedAssetsCount,
+                # Reset fields for fresh verification:
+                "status": "OPEN",  # Reset to OPEN for re-verification
+                "evidence": None,  # Clear evidence - needs fresh proof
+                "projectId": retest_project.id,
+                "createdById": current_user.id,
+                "templateId": finding.templateId,
+            }
+        )
+        cloned_findings_count += 1
+    
+    logger.info(f"Cloned {cloned_findings_count} findings to retest project")
+    
+    # Fetch the complete retest project with counts
+    complete_retest = await db.project.find_unique(
+        where={"id": retest_project.id},
+        include={
+            "client": True,
+            "lead": True,
+            "findings": True,
+            "reports": True,
+            "parentProject": True,
+        }
+    )
+    
+    return ProjectResponse(
+        id=complete_retest.id,
+        name=complete_retest.name,
+        description=complete_retest.description,
+        status=complete_retest.status,
+        start_date=complete_retest.startDate.isoformat() if complete_retest.startDate else None,
+        end_date=complete_retest.endDate.isoformat() if complete_retest.endDate else None,
+        project_type=complete_retest.projectType,
+        scope=complete_retest.scope,
+        methodology=complete_retest.methodology,
+        compliance_frameworks=complete_retest.complianceFrameworks,
+        priority=complete_retest.priority,
+        client_id=complete_retest.clientId,
+        client_name=complete_retest.client.name,
+        lead_id=complete_retest.leadId,
+        lead_name=complete_retest.lead.name,
+        created_at=complete_retest.createdAt.isoformat(),
+        updated_at=complete_retest.updatedAt.isoformat(),
+        finding_count=len(complete_retest.findings),
+        report_count=len(complete_retest.reports),
+        is_retest=complete_retest.isRetest,
+        parent_project_id=complete_retest.parentProjectId,
+        parent_project_name=complete_retest.parentProject.name if complete_retest.parentProject else None,
+        retest_count=0,
     )

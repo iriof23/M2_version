@@ -60,6 +60,7 @@ class EvidenceResponse(BaseModel):
 
 class FindingResponse(BaseModel):
     id: str
+    reference_id: Optional[str]  # Professional Finding ID (e.g., "ACME-001")
     title: str
     description: str
     severity: str
@@ -76,6 +77,7 @@ class FindingResponse(BaseModel):
     project_id: str
     project_name: str
     client_name: Optional[str]  # Added for generating unique Finding IDs
+    client_code: Optional[str]  # Client ticker code
     created_by_id: str
     created_by_name: str
     template_id: Optional[str]
@@ -130,6 +132,7 @@ async def list_findings(
     return [
         FindingResponse(
             id=finding.id,
+            reference_id=finding.referenceId,
             title=finding.title,
             description=finding.description,
             severity=finding.severity,
@@ -146,6 +149,7 @@ async def list_findings(
             project_id=finding.projectId,
             project_name=finding.project.name,
             client_name=finding.project.client.name if finding.project.client else None,
+            client_code=finding.project.client.code if finding.project.client else None,
             created_by_id=finding.createdById,
             created_by_name=finding.createdBy.name,
             template_id=finding.templateId,
@@ -155,6 +159,26 @@ async def list_findings(
         )
         for finding in findings
     ]
+
+
+async def generate_finding_reference_id(client_id: str) -> str:
+    """
+    Generate a unique Finding ID for a client.
+    Format: CLIENT_CODE-XXX (e.g., ACME-001, ACME-002)
+    Uses atomic increment to prevent race conditions.
+    """
+    # Increment the client's finding counter and get the new value
+    updated_client = await db.client.update(
+        where={"id": client_id},
+        data={"findingCounter": {"increment": 1}}
+    )
+    
+    # Get the client code (or generate a fallback)
+    client_code = updated_client.code or "FND"
+    next_number = updated_client.findingCounter or 1
+    
+    # Format as CLIENT-001, CLIENT-002, etc.
+    return f"{client_code}-{next_number:03d}"
 
 
 @router.post("/", response_model=FindingResponse, status_code=status.HTTP_201_CREATED)
@@ -184,8 +208,13 @@ async def create_finding(
     # Convert severity to uppercase to match database enum
     severity_upper = finding_data.severity.upper() if finding_data.severity else "MEDIUM"
     
+    # Generate a unique Finding Reference ID (e.g., ACME-001)
+    reference_id = await generate_finding_reference_id(project.clientId)
+    logger.info(f"Generated Finding ID: {reference_id} for client {project.clientId}")
+    
     finding = await db.finding.create(
         data={
+            "referenceId": reference_id,  # The professional Finding ID
             "title": finding_data.title,
             "description": finding_data.description,
             "severity": severity_upper,
@@ -216,6 +245,7 @@ async def create_finding(
     
     return FindingResponse(
         id=finding.id,
+        reference_id=finding.referenceId,
         title=finding.title,
         description=finding.description,
         severity=finding.severity,
@@ -232,6 +262,7 @@ async def create_finding(
         project_id=finding.projectId,
         project_name=finding.project.name,
         client_name=finding.project.client.name if finding.project.client else None,
+        client_code=finding.project.client.code if finding.project.client else None,
         created_by_id=finding.createdById,
         created_by_name=finding.createdBy.name,
         template_id=finding.templateId,
@@ -271,6 +302,7 @@ async def get_finding(
     
     return FindingResponse(
         id=finding.id,
+        reference_id=finding.referenceId,
         title=finding.title,
         description=finding.description,
         severity=finding.severity,
@@ -287,6 +319,7 @@ async def get_finding(
         project_id=finding.projectId,
         project_name=finding.project.name,
         client_name=finding.project.client.name if finding.project.client else None,
+        client_code=finding.project.client.code if finding.project.client else None,
         created_by_id=finding.createdById,
         created_by_name=finding.createdBy.name,
         template_id=finding.templateId,
@@ -378,6 +411,7 @@ async def update_finding(
         
         return FindingResponse(
             id=updated_finding.id,
+            reference_id=updated_finding.referenceId,
             title=updated_finding.title,
             description=updated_finding.description,
             severity=updated_finding.severity,
@@ -394,6 +428,7 @@ async def update_finding(
             project_id=updated_finding.projectId,
             project_name=updated_finding.project.name,
             client_name=updated_finding.project.client.name if updated_finding.project.client else None,
+            client_code=updated_finding.project.client.code if updated_finding.project.client else None,
             created_by_id=updated_finding.createdById,
             created_by_name=updated_finding.createdBy.name,
             template_id=updated_finding.templateId,

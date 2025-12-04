@@ -32,6 +32,7 @@ import CVSSCalculator from './CVSSCalculator';
 // Define types locally for now, ideally should be shared
 export interface ProjectFinding {
     id: string;
+    referenceId?: string;  // Professional Finding ID (e.g., "ACME-001")
     owaspId: string;
     title: string;
     severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
